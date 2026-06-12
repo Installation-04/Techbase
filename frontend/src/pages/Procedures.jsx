@@ -20,9 +20,9 @@ export default function Procedures() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Procédures</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {['all', 'onsite', 'remote'].map(f => (
             <button
               key={f}

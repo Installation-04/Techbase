@@ -33,7 +33,7 @@ router.put('/clients/:clientId/epi/:id', authenticate, async (req, res) => {
   try {
     const result = await db.query(
       'UPDATE epi SET name=$1, type=$2, quantity=$3, expiry_date=$4, location=$5, notes=$6, updated_at=NOW() WHERE id=$7 AND client_id=$8 RETURNING *',
-      [name, type, quantity, expiry_date || null, location, notes, req.params.id, req.params.clientId]
+      [name, type, quantity || 1, expiry_date || null, location, notes, req.params.id, req.params.clientId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'EPI non trouvé' });
     res.json(result.rows[0]);

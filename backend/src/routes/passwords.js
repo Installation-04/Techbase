@@ -58,12 +58,21 @@ router.post('/clients/:clientId/passwords', authenticate, async (req, res) => {
 router.put('/clients/:clientId/passwords/:id', authenticate, async (req, res) => {
   const db = req.app.locals.db;
   const { label, username, password, url, notes } = req.body;
+  if (!label) return res.status(400).json({ error: 'Label requis' });
   try {
-    const encrypted = encrypt(password);
-    const result = await db.query(
-      'UPDATE passwords SET label=$1, username=$2, encrypted_password=$3, url=$4, notes=$5, updated_at=NOW() WHERE id=$6 AND client_id=$7 RETURNING *',
-      [label, username, encrypted, url, notes, req.params.id, req.params.clientId]
-    );
+    let result;
+    if (password) {
+      const encrypted = encrypt(password);
+      result = await db.query(
+        'UPDATE passwords SET label=$1, username=$2, encrypted_password=$3, url=$4, notes=$5, updated_at=NOW() WHERE id=$6 AND client_id=$7 RETURNING *',
+        [label, username, encrypted, url, notes, req.params.id, req.params.clientId]
+      );
+    } else {
+      result = await db.query(
+        'UPDATE passwords SET label=$1, username=$2, url=$3, notes=$4, updated_at=NOW() WHERE id=$5 AND client_id=$6 RETURNING *',
+        [label, username, url, notes, req.params.id, req.params.clientId]
+      );
+    }
     if (result.rows.length === 0) return res.status(404).json({ error: 'Mot de passe non trouvé' });
     const row = result.rows[0];
     res.json({ ...row, password: decrypt(row.encrypted_password) });

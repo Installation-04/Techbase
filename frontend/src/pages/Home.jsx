@@ -12,7 +12,7 @@ export default function Home() {
   useEffect(() => {
     axios.get('/api/clients').then(res => {
       setRecentClients(res.data.slice(0, 5));
-    }).catch(console.error);
+    }).catch(() => {});
   }, []);
 
   return (

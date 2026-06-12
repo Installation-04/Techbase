@@ -91,6 +91,9 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
 
 // DELETE /api/users/:id (admin)
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+  if (parseInt(req.params.id) === req.user.id) {
+    return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+  }
   const db = req.app.locals.db;
   try {
     await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
