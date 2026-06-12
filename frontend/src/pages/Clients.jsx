@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 function Modal({ onClose, onSaved, client }) {
   const [form, setForm] = useState({
@@ -92,20 +93,30 @@ export default function Clients() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editClient, setEditClient] = useState(null);
+  const [error, setError] = useState('');
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const fetchClients = async () => {
-    const res = await axios.get('/api/clients');
-    setClients(res.data);
+    try {
+      const res = await axios.get('/api/clients');
+      setClients(res.data);
+    } catch (err) {
+      setError('Impossible de charger les clients');
+    }
   };
 
   useEffect(() => { fetchClients(); }, []);
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
-    if (!confirm('Supprimer ce client ?')) return;
-    await axios.delete(`/api/clients/${id}`);
-    fetchClients();
+    if (!confirm('Supprimer ce client ? Cette action est irréversible.')) return;
+    try {
+      await axios.delete(`/api/clients/${id}`);
+      fetchClients();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur lors de la suppression');
+    }
   };
 
   const filtered = clients.filter(c =>
@@ -122,21 +133,24 @@ export default function Clients() {
           onClick={() => { setEditClient(null); setShowModal(true); }}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
         >
-          + Nouveau client
+          + Nouveau
         </button>
       </div>
+
+      {error && <p className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
 
       <div className="mb-4">
         <input
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher..."
-          className="w-full max-w-md px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          placeholder="Rechercher par nom, contrat, responsable..."
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
         />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Desktop table */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
@@ -159,8 +173,8 @@ export default function Clients() {
                   className="hover:bg-blue-50 cursor-pointer transition-colors"
                 >
                   <td className="px-6 py-4 font-medium text-gray-900">{client.name}</td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">{client.contract_number || '-'}</td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">{client.manager || '-'}</td>
+                  <td className="px-6 py-4 text-gray-600 text-sm">{client.contract_number || '—'}</td>
+                  <td className="px-6 py-4 text-gray-600 text-sm">{client.manager || '—'}</td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
                       <button
@@ -169,12 +183,14 @@ export default function Clients() {
                       >
                         Modifier
                       </button>
-                      <button
-                        onClick={e => handleDelete(client.id, e)}
-                        className="px-3 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors"
-                      >
-                        Supprimer
-                      </button>
+                      {user?.role === 'admin' && (
+                        <button
+                          onClick={e => handleDelete(client.id, e)}
+                          className="px-3 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors"
+                        >
+                          Supprimer
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -182,6 +198,51 @@ export default function Clients() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <div className="bg-white rounded-xl p-8 text-center text-gray-400 shadow-sm border border-gray-100">
+            Aucun client trouvé
+          </div>
+        ) : (
+          filtered.map(client => (
+            <div
+              key={client.id}
+              onClick={() => navigate(`/clients/${client.id}`)}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer active:bg-blue-50 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{client.name}</p>
+                  {client.contract_number && (
+                    <p className="text-sm text-gray-500 mt-0.5">Contrat: {client.contract_number}</p>
+                  )}
+                  {client.manager && (
+                    <p className="text-sm text-gray-500">{client.manager}</p>
+                  )}
+                </div>
+                <div className="flex gap-2 ml-3 shrink-0">
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditClient(client); setShowModal(true); }}
+                    className="px-3 py-1.5 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    Modifier
+                  </button>
+                  {user?.role === 'admin' && (
+                    <button
+                      onClick={e => handleDelete(client.id, e)}
+                      className="px-3 py-1.5 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {showModal && (

@@ -602,12 +602,12 @@ export default function ClientDetail() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate('/clients')} className="text-gray-400 hover:text-gray-600">
+      <div className="flex items-center gap-2 mb-6 min-w-0">
+        <button onClick={() => navigate('/clients')} className="text-gray-400 hover:text-gray-600 shrink-0 text-sm">
           ← Clients
         </button>
-        <span className="text-gray-300">/</span>
-        <h1 className="text-2xl font-bold text-gray-800">{client.name}</h1>
+        <span className="text-gray-300 shrink-0">/</span>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800 truncate">{client.name}</h1>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">

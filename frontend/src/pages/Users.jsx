@@ -134,7 +134,8 @@ export default function Users() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Desktop table */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
@@ -178,6 +179,41 @@ export default function Users() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {users.map(u => (
+          <div key={u.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-gray-900">{u.name}</p>
+                  {u.id === currentUser.id && <span className="text-xs text-gray-400">(vous)</span>}
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge(u.role)}`}>
+                    {u.role === 'admin' ? 'Admin' : 'Utilisateur'}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1 truncate">{u.email}</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => { setEditUser(u); setShowModal(true); }}
+                  className="px-3 py-1.5 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Modifier
+                </button>
+                <button
+                  onClick={() => handleDelete(u.id)}
+                  disabled={u.id === currentUser.id}
+                  className="px-3 py-1.5 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {showModal && (
