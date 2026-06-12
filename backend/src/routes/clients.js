@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 
 router.get('/clients', authenticate, async (req, res) => {
   const db = req.app.locals.db;
@@ -53,7 +53,7 @@ router.put('/clients/:id', authenticate, async (req, res) => {
   }
 });
 
-router.delete('/clients/:id', authenticate, async (req, res) => {
+router.delete('/clients/:id', authenticate, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
   try {
     await db.query('DELETE FROM clients WHERE id = $1', [req.params.id]);
