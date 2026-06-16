@@ -11,9 +11,19 @@ Application de gestion pour techniciens de terrain. Centralise toutes les inform
 
 ## Démarrage rapide
 
+### Installation automatique (recommandé)
+
+```bash
+./install.sh
+```
+
+Ce script vérifie la présence de Docker, génère un fichier `.env` avec des secrets aléatoires (JWT_SECRET, DB_PASSWORD), puis construit et démarre les conteneurs.
+
+### Installation manuelle
+
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build -d
 ```
 
 L'application est accessible sur http://localhost
