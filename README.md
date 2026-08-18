@@ -99,3 +99,32 @@ Copier `.env.example` en `.env` et adapter les valeurs :
 | Frontend (nginx) | `80` |
 | Backend (Express) | `3001` |
 | PostgreSQL | `5432` (interne) |
+
+## Déploiement complet sur Netlify
+
+L'application peut être déployée entièrement sur Netlify :
+
+- **Frontend** : build statique React (`netlify.toml`, publié depuis `frontend/dist`)
+- **Backend** : l'API Express est packagée en une Netlify Function (`netlify/functions/api.js`, servie sur `/api/*`, même domaine que le frontend — pas de CORS à configurer)
+- **Base de données** : [Netlify DB](https://docs.netlify.com/build/data-and-storage/netlify-db/) (PostgreSQL managé, propulsé par Neon) — provisionnée automatiquement, aucune chaîne de connexion à gérer manuellement
+- **Documents** : stockés dans [Netlify Blobs](https://docs.netlify.com/build/data-and-storage/netlify-blobs/) au lieu du disque local
+
+### Étapes
+
+1. Installer les dépendances du module `@netlify/database` (déjà dans `backend/package.json`) — Netlify provisionne la base automatiquement au premier déploiement.
+2. Le schéma de base de données est appliqué automatiquement via les migrations dans `netlify/database/migrations/`.
+3. Sur Netlify, créer un nouveau site à partir de ce dépôt (la configuration `netlify.toml` gère le build du frontend et le dossier des fonctions).
+4. Définir `JWT_SECRET` dans les variables d'environnement du site Netlify (obligatoire en production — le démarrage échoue si absent).
+5. Déployer. Le frontend appelle l'API relativement (`/api/...`), qui est automatiquement routée vers la fonction serverless sur le même domaine.
+
+### Développement local (Docker Compose)
+
+Le flux Docker Compose (`docker-compose.yml`) reste disponible pour le développement local : backend Express autonome + PostgreSQL + stockage des documents sur disque (`/app/uploads`). Le code détecte automatiquement l'environnement (variable `NETLIFY`) et bascule entre les deux modes de stockage sans changement de code applicatif.
+
+### Déploiement alternatif : frontend Netlify + backend hébergé séparément
+
+Si vous préférez héberger le backend ailleurs (Render, Railway, Fly.io…) plutôt que via les Netlify Functions :
+
+1. Déployer `backend/` + PostgreSQL sur cet hébergeur avec les variables de `.env.example`, en définissant `CORS_ORIGIN` avec l'URL Netlify du frontend.
+2. Dans les paramètres du site Netlify, définir `VITE_API_URL` avec l'URL publique du backend (sans `/api` à la fin).
+3. Retirer ou adapter `[functions]` dans `netlify.toml` si les Netlify Functions ne sont pas utilisées.

@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 
 const ALGORITHM = 'aes-256-cbc';
-const SECRET_KEY = process.env.JWT_SECRET || 'change_this_secret_in_production';
+const SECRET_KEY = process.env.JWT_SECRET || 'change_this_secret_in_production_dev_only';
 const KEY = crypto.scryptSync(SECRET_KEY, 'techbase_salt', 32);
 
 function encrypt(text) {

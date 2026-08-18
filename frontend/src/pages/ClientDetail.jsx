@@ -504,6 +504,17 @@ function DocumentsTab({ clientId }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const handleOpen = async (item) => {
+    try {
+      const res = await axios.get(`/api/clients/${clientId}/documents/${item.id}/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      alert('Erreur lors de l\'ouverture du document');
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-end mb-4">
@@ -526,14 +537,12 @@ function DocumentsTab({ clientId }) {
               </div>
             </div>
             <div className="flex gap-2">
-              <a
-                href={`/uploads/${item.filename}`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() => handleOpen(item)}
                 className="px-3 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-100 transition-colors"
               >
                 Ouvrir
-              </a>
+              </button>
               <button
                 onClick={async () => {
                   if (confirm('Supprimer ce document ?')) {

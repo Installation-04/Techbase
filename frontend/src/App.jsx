@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Home from './pages/Home';
-import Clients from './pages/Clients';
-import ClientDetail from './pages/ClientDetail';
-import Procedures from './pages/Procedures';
-import Users from './pages/Users';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
+const Login = lazy(() => import('./pages/Login'));
+const Home = lazy(() => import('./pages/Home'));
+const Clients = lazy(() => import('./pages/Clients'));
+const ClientDetail = lazy(() => import('./pages/ClientDetail'));
+const Procedures = lazy(() => import('./pages/Procedures'));
+const Users = lazy(() => import('./pages/Users'));
+
 export default function App() {
   return (
+    <Suspense fallback={null}>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route
@@ -65,5 +67,6 @@ export default function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }

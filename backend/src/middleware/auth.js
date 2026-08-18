@@ -7,7 +7,7 @@ const authenticate = (req, res, next) => {
   }
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'change_this_secret_in_production');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'change_this_secret_in_production_dev_only');
     req.user = decoded;
     next();
   } catch (err) {
