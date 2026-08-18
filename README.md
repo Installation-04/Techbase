@@ -2,6 +2,16 @@
 
 Application de gestion pour techniciens de terrain. Centralise toutes les informations critiques pour réduire le temps de réponse lors des interventions.
 
+## Version
+
+Le projet est actuellement en **bêta** (versions `0.0.x`, sous le `1.0.0`). Le numéro de version est synchronisé dans `package.json` (racine), `backend/package.json` et `frontend/package.json` — les trois doivent rester identiques à chaque déploiement.
+
+À chaque déploiement en production, incrémenter le numéro de version (`0.0.1` → `0.0.2`, etc.) dans les trois fichiers avant de merger/déployer. Le numéro est visible :
+- Dans l'application (pied de la barre latérale)
+- Via l'API : `GET /api/health` retourne `{ "status": "ok", "version": "0.0.x" }`
+
+Le premier `1.0.0` marquera la sortie de bêta.
+
 ## Stack
 
 - **Frontend:** React + Vite, Tailwind CSS, React Router
