@@ -99,3 +99,15 @@ Copier `.env.example` en `.env` et adapter les valeurs :
 | Frontend (nginx) | `80` |
 | Backend (Express) | `3001` |
 | PostgreSQL | `5432` (interne) |
+
+## Déploiement du frontend sur Netlify
+
+Netlify héberge uniquement des sites statiques : il peut servir le frontend React, mais **pas** le backend Express ni PostgreSQL. Le backend doit être déployé ailleurs (Render, Railway, Fly.io, VPS…) et exposer une URL HTTPS publique.
+
+1. Déployer le backend + PostgreSQL sur un hébergeur compatible (Docker/Node), avec les variables d'environnement de `.env.example`, en définissant `CORS_ORIGIN` avec l'URL Netlify du frontend (ex. `https://techbase.netlify.app`).
+2. Sur Netlify, créer un nouveau site à partir de ce dépôt. La configuration (`netlify.toml`) définit déjà :
+   - Base : `frontend`
+   - Commande de build : `npm run build`
+   - Dossier de publication : `dist`
+3. Dans les paramètres du site Netlify (Environment variables), définir `VITE_API_URL` avec l'URL publique du backend (ex. `https://techbase-api.onrender.com`, sans `/api` à la fin).
+4. Déployer. Le frontend appellera l'API sur `VITE_API_URL` au lieu du proxy Vite local.

@@ -5,11 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const { authenticate } = require('../middleware/auth');
 
+const uploadsDir = process.env.UPLOADS_DIR || '/app/uploads';
+fs.mkdirSync(uploadsDir, { recursive: true });
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = '/app/uploads';
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -52,8 +53,10 @@ router.delete('/clients/:clientId/documents/:id', authenticate, async (req, res)
     const result = await db.query('SELECT * FROM documents WHERE id=$1 AND client_id=$2', [req.params.id, req.params.clientId]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document non trouvé' });
     const doc = result.rows[0];
-    const filePath = '/app/uploads/' + doc.filename;
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const filePath = path.join(uploadsDir, doc.filename);
+    await fs.promises.unlink(filePath).catch(err => {
+      if (err.code !== 'ENOENT') throw err;
+    });
     await db.query('DELETE FROM documents WHERE id=$1', [req.params.id]);
     res.json({ message: 'Document supprimé' });
   } catch (err) {

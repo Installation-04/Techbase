@@ -1,11 +1,20 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production');
+}
+
 const app = express();
-app.use(cors());
+
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
+app.use(cors({
+  origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+}));
 app.use(express.json());
 
 const pool = new Pool({
@@ -18,7 +27,9 @@ const pool = new Pool({
 
 app.locals.db = pool;
 
-app.use('/uploads', express.static('/app/uploads'));
+const uploadsDir = process.env.UPLOADS_DIR || '/app/uploads';
+fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
 
 const usersRouter = require('./routes/users');
 const clientsRouter = require('./routes/clients');

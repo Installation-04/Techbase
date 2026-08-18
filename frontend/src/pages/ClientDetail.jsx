@@ -527,7 +527,7 @@ function DocumentsTab({ clientId }) {
             </div>
             <div className="flex gap-2">
               <a
-                href={`/uploads/${item.filename}`}
+                href={`${import.meta.env.VITE_API_URL || ''}/uploads/${item.filename}`}
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-100 transition-colors"

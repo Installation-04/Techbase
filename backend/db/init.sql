@@ -104,3 +104,18 @@ CREATE TABLE IF NOT EXISTS documents (
   uploaded_by INTEGER REFERENCES users(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_equipment_client_id ON equipment(client_id);
+CREATE INDEX IF NOT EXISTS idx_procedures_client_id ON procedures(client_id);
+CREATE INDEX IF NOT EXISTS idx_passwords_client_id ON passwords(client_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_client_id ON contacts(client_id);
+CREATE INDEX IF NOT EXISTS idx_epi_client_id ON epi(client_id);
+CREATE INDEX IF NOT EXISTS idx_logbook_client_id ON logbook(client_id);
+CREATE INDEX IF NOT EXISTS idx_logbook_user_id ON logbook(user_id);
+CREATE INDEX IF NOT EXISTS idx_documents_client_id ON documents(client_id);
+CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by ON documents(uploaded_by);
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS idx_clients_name_trgm ON clients USING GIN (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_equipment_name_trgm ON equipment USING GIN (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_contacts_name_trgm ON contacts USING GIN (name gin_trgm_ops);
