@@ -1,8 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { createPool } = require('./db');
+const { version } = require('../package.json');
 
 const isNetlify = !!process.env.NETLIFY;
 
@@ -17,6 +18,8 @@ app.use(cors({
   origin: allowedOrigins.length > 0 ? allowedOrigins : true,
 }));
 app.use(express.json());
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version }));
 
 const pool = createPool();
 app.locals.db = pool;
