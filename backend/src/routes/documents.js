@@ -5,20 +5,31 @@ const path = require('path');
 const fs = require('fs');
 const { authenticate } = require('../middleware/auth');
 
+const isNetlify = !!process.env.NETLIFY;
 const uploadsDir = process.env.UPLOADS_DIR || '/app/uploads';
-fs.mkdirSync(uploadsDir, { recursive: true });
+if (!isNetlify) fs.mkdirSync(uploadsDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  }
-});
+function uniqueFilename(originalname) {
+  const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+  return unique + path.extname(originalname);
+}
 
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer(
+  isNetlify
+    ? { storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }
+    : {
+        storage: multer.diskStorage({
+          destination: (req, file, cb) => cb(null, uploadsDir),
+          filename: (req, file, cb) => cb(null, uniqueFilename(file.originalname)),
+        }),
+        limits: { fileSize: 50 * 1024 * 1024 },
+      }
+);
+
+function getBlobStore() {
+  const { getStore } = require('@netlify/blobs');
+  return getStore('documents');
+}
 
 router.get('/clients/:clientId/documents', authenticate, async (req, res) => {
   const db = req.app.locals.db;
@@ -37,11 +48,38 @@ router.post('/clients/:clientId/documents', authenticate, upload.single('file'),
   const db = req.app.locals.db;
   if (!req.file) return res.status(400).json({ error: 'Fichier requis' });
   try {
+    let filename = req.file.filename;
+    if (isNetlify) {
+      filename = uniqueFilename(req.file.originalname);
+      const store = getBlobStore();
+      await store.set(filename, req.file.buffer, { metadata: { mimetype: req.file.mimetype } });
+    }
     const result = await db.query(
       'INSERT INTO documents (client_id, filename, original_name, mimetype, size, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [req.params.clientId, req.file.filename, req.file.originalname, req.file.mimetype, req.file.size, req.user.id]
+      [req.params.clientId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user.id]
     );
     res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/clients/:clientId/documents/:id/download', authenticate, async (req, res) => {
+  const db = req.app.locals.db;
+  try {
+    const result = await db.query('SELECT * FROM documents WHERE id=$1 AND client_id=$2', [req.params.id, req.params.clientId]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Document non trouvé' });
+    const doc = result.rows[0];
+    res.setHeader('Content-Type', doc.mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.original_name)}"`);
+    if (isNetlify) {
+      const store = getBlobStore();
+      const data = await store.get(doc.filename, { type: 'arrayBuffer' });
+      if (!data) return res.status(404).json({ error: 'Fichier non trouvé' });
+      res.send(Buffer.from(data));
+    } else {
+      res.sendFile(path.join(uploadsDir, doc.filename));
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -53,10 +91,15 @@ router.delete('/clients/:clientId/documents/:id', authenticate, async (req, res)
     const result = await db.query('SELECT * FROM documents WHERE id=$1 AND client_id=$2', [req.params.id, req.params.clientId]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document non trouvé' });
     const doc = result.rows[0];
-    const filePath = path.join(uploadsDir, doc.filename);
-    await fs.promises.unlink(filePath).catch(err => {
-      if (err.code !== 'ENOENT') throw err;
-    });
+    if (isNetlify) {
+      const store = getBlobStore();
+      await store.delete(doc.filename);
+    } else {
+      const filePath = path.join(uploadsDir, doc.filename);
+      await fs.promises.unlink(filePath).catch(err => {
+        if (err.code !== 'ENOENT') throw err;
+      });
+    }
     await db.query('DELETE FROM documents WHERE id=$1', [req.params.id]);
     res.json({ message: 'Document supprimé' });
   } catch (err) {

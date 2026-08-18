@@ -1,0 +1,11 @@
+{
+  "name": "techbase",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root package for Netlify Functions dependency resolution (netlify/functions/api.js).",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "@netlify/database": "^1.0.0",
+    "serverless-http": "^3.2.0"
+  }
+}
