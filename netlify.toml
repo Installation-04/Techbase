@@ -1,0 +1,18 @@
+[build]
+  command = "cd frontend && npm ci && npm run build"
+  publish = "frontend/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# SPA fallback so client-side routes (e.g. /clients/1) resolve on refresh.
+# Function routing for /api/* is defined via the `config.path` export in
+# netlify/functions/api.js and takes priority over this catch-all.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

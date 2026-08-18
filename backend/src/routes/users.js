@@ -2,10 +2,19 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, réessayez plus tard' },
+});
+
 // POST /api/users/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const db = req.app.locals.db;
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' });
@@ -17,7 +26,7 @@ router.post('/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Identifiants invalides' });
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name, role: user.role },
-      process.env.JWT_SECRET || 'change_this_secret_in_production',
+      process.env.JWT_SECRET || 'change_this_secret_in_production_dev_only',
       { expiresIn: '8h' }
     );
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
