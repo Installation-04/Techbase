@@ -38,9 +38,32 @@ docker compose up --build -d
 
 L'application est accessible sur http://localhost
 
-**Compte administrateur par défaut :**
-- Email : `admin@techbase.local`
-- Mot de passe : `Admin1234!`
+**Premier accès :** il n'y a plus de compte admin préconfiguré. Ouvrez l'application et créez un compte via « Créer un compte » sur l'écran de connexion — **le tout premier compte créé (local ou via SSO) devient automatiquement administrateur.** Tous les comptes suivants ont le rôle « Utilisateur » par défaut (modifiable ensuite par un admin dans Utilisateurs).
+
+## Authentification
+
+Trois façons de se connecter, configurables indépendamment :
+
+- **Compte local** (email + mot de passe) — toujours disponible, aucune configuration requise.
+- **Auto-inscription** — n'importe qui peut créer un compte via « Créer un compte ». Le premier compte créé devient admin ; les suivants sont créés avec le rôle « Utilisateur ». ⚠️ Vu que l'application stocke des identifiants clients sensibles, envisagez de restreindre l'inscription (voir note ci-dessous) une fois l'admin initial créé.
+- **SSO Google / Microsoft 365** — optionnel, désactivé par défaut. Les boutons SSO n'apparaissent sur l'écran de connexion que si les variables d'environnement correspondantes sont définies.
+
+### Configurer le SSO Google
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → Create Credentials → OAuth client ID → type **Web application**.
+2. Ajouter comme URI de redirection autorisée : `https://<votre-domaine>/api/auth/google/callback`
+3. Définir `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` (variables d'environnement du site Netlify, ou `.env` en local).
+
+### Configurer le SSO Microsoft 365
+
+1. [Portail Azure](https://portal.azure.com/) → Microsoft Entra ID → App registrations → New registration (type **Web**).
+2. Ajouter comme URI de redirection : `https://<votre-domaine>/api/auth/microsoft/callback`
+3. Certificates & secrets → générer un nouveau client secret.
+4. Définir `MICROSOFT_CLIENT_ID` et `MICROSOFT_CLIENT_SECRET`. Par défaut (`MICROSOFT_TENANT_ID` non défini), les comptes personnels Microsoft et tout compte Microsoft 365 professionnel/scolaire sont acceptés — définir `MICROSOFT_TENANT_ID` pour restreindre à une seule organisation.
+
+### Note sur l'auto-inscription
+
+L'inscription ouverte est pratique pour démarrer, mais TechBase stocke des mots de passe/identifiants clients — une fois l'admin initial créé, il est recommandé de retirer l'inscription publique (ou de la limiter par domaine d'email) pour un usage en production. Ce n'est pas encore implémenté ; à faire évoluer selon les besoins (ex. liste blanche de domaines, invitation par un admin).
 
 ## Modules
 
