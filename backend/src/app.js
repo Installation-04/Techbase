@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
-const bcrypt = require('bcryptjs');
 const { createPool } = require('./db');
 const { version } = require('../package.json');
 
@@ -12,6 +11,11 @@ if ((isNetlify || process.env.NODE_ENV === 'production') && !process.env.JWT_SEC
 }
 
 const app = express();
+
+// Netlify Functions run behind one reverse-proxy hop; trust its
+// X-Forwarded-* headers (needed for express-rate-limit's IP detection
+// and for req.protocol to reflect https when building OAuth redirect URIs).
+app.set('trust proxy', 1);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors({
@@ -30,6 +34,7 @@ if (!isNetlify) {
   app.use('/uploads', express.static(uploadsDir));
 }
 
+const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const clientsRouter = require('./routes/clients');
 const equipmentRouter = require('./routes/equipment');
@@ -41,6 +46,7 @@ const logbookRouter = require('./routes/logbook');
 const documentsRouter = require('./routes/documents');
 const searchRouter = require('./routes/search');
 
+app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api', clientsRouter);
 app.use('/api', equipmentRouter);
@@ -52,22 +58,6 @@ app.use('/api', logbookRouter);
 app.use('/api', documentsRouter);
 app.use('/api', searchRouter);
 
-async function createDefaultAdmin() {
-  try {
-    const result = await pool.query('SELECT id FROM users WHERE email = $1', ['admin@techbase.local']);
-    if (result.rows.length === 0) {
-      const hash = await bcrypt.hash('Admin1234!', 10);
-      await pool.query(
-        'INSERT INTO users (email, password_hash, name, role) VALUES ($1, $2, $3, $4)',
-        ['admin@techbase.local', hash, 'Administrateur', 'admin']
-      );
-      console.log('Default admin created');
-    }
-  } catch (err) {
-    console.error('Error creating default admin:', err);
-  }
-}
-
 let readyPromise = null;
 
 async function init() {
@@ -78,7 +68,6 @@ async function init() {
       while (retries > 0) {
         try {
           await pool.query('SELECT 1');
-          await createDefaultAdmin();
           return;
         } catch (err) {
           retries--;
