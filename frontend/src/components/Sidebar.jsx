@@ -106,6 +106,9 @@ export default function Sidebar({ onClose }) {
           <span>🚪</span>
           <span>Déconnexion</span>
         </button>
+        <p className="text-center text-[10px] text-gray-600 mt-3">
+          v{__APP_VERSION__} · bêta
+        </p>
       </div>
     </aside>
   );

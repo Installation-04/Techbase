@@ -1,6 +1,6 @@
 {
   "name": "techbase",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Root package for Netlify Functions dependency resolution (netlify/functions/api.js).",
   "dependencies": {

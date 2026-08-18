@@ -1,6 +1,6 @@
 {
   "name": "techbase-backend",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "src/index.js",
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
