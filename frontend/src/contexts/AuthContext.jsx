@@ -36,14 +36,30 @@ export function AuthProvider({ children }) {
     return () => axios.interceptors.response.eject(interceptor);
   }, []);
 
-  const login = async (email, password) => {
-    const response = await axios.post('/api/users/login', { email, password });
-    const { token, user } = response.data;
+  const applySession = (token, user) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(user);
     return user;
+  };
+
+  const login = async (email, password) => {
+    const response = await axios.post('/api/users/login', { email, password });
+    return applySession(response.data.token, response.data.user);
+  };
+
+  const register = async (email, password, name) => {
+    const response = await axios.post('/api/users/register', { email, password, name });
+    return applySession(response.data.token, response.data.user);
+  };
+
+  // Used by the SSO callback page: a token is handed off in the URL
+  // fragment, but the user profile still needs to be fetched.
+  const loginWithToken = async (token) => {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    const response = await axios.get('/api/users/me');
+    return applySession(token, response.data);
   };
 
   const logout = doLogout;
@@ -57,7 +73,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, register, loginWithToken, logout }}>
       {children}
     </AuthContext.Provider>
   );
