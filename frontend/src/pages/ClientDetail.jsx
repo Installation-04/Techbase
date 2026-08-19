@@ -523,7 +523,7 @@ function WorkOrdersTab({ clientId }) {
   return (
     <div>
       <div className="flex justify-end mb-4">
-        <button onClick={() => setModal({ priority: 'medium' })} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">+ Nouvel ordre</button>
+        <button onClick={() => setModal({ priority: 'medium' })} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">+ Nouveau bon de service</button>
       </div>
       <div className="space-y-3">
         {items.map(item => (
@@ -550,11 +550,11 @@ function WorkOrdersTab({ clientId }) {
             </div>
           </div>
         ))}
-        {items.length === 0 && <p className="text-center text-gray-400 py-8">Aucun ordre de travail</p>}
+        {items.length === 0 && <p className="text-center text-gray-400 py-8">Aucun bon de service</p>}
       </div>
       {modal !== null && (
         <GenericModal
-          title={modal.id ? "Modifier l'ordre de travail" : 'Nouvel ordre de travail'}
+          title={modal.id ? "Modifier le bon de service" : 'Nouveau bon de service'}
           fields={editFields}
           initialData={modal}
           onClose={() => setModal(null)}
@@ -668,7 +668,7 @@ function DocumentsTab({ clientId }) {
 // ---- Main ClientDetail Page ----
 const TABS = [
   { id: 'equipment', label: 'Équipements', component: EquipmentTab },
-  { id: 'workorders', label: 'Ordres de travail', component: WorkOrdersTab },
+  { id: 'workorders', label: 'Bons de service', component: WorkOrdersTab },
   { id: 'procedures', label: 'Procédures', component: ProceduresTab },
   { id: 'passwords', label: 'Mots de passe', component: PasswordsTab },
   { id: 'contacts', label: 'Contacts', component: ContactsTab },
