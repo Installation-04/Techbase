@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { authenticate } = require('../middleware/auth');
+const { serverError } = require('../lib/respond');
 
 const isNetlify = !!process.env.NETLIFY;
 const uploadsDir = process.env.UPLOADS_DIR || '/app/uploads';
@@ -40,7 +41,7 @@ router.get('/clients/:clientId/documents', authenticate, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -60,7 +61,7 @@ router.post('/clients/:clientId/documents', authenticate, upload.single('file'),
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -81,7 +82,7 @@ router.get('/clients/:clientId/documents/:id/download', authenticate, async (req
       res.sendFile(path.join(uploadsDir, doc.filename));
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -103,7 +104,7 @@ router.delete('/clients/:clientId/documents/:id', authenticate, async (req, res)
     await db.query('DELETE FROM documents WHERE id=$1', [req.params.id]);
     res.json({ message: 'Document supprimé' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 

@@ -1,6 +1,6 @@
 {
   "name": "techbase",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "Root package for Netlify Functions dependency resolution (netlify/functions/api.js). Netlify's function bundler only resolves deps from the site's top-level package.json, so backend/'s runtime dependencies are mirrored here too.",
   "dependencies": {
@@ -14,5 +14,11 @@
     "multer": "^1.4.5-lts.1",
     "pg": "^8.11.3",
     "serverless-http": "^3.2.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  },
+  "scripts": {
+    "test": "node --test backend/test"
   }
 }

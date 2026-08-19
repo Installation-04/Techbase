@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const rateLimit = require('express-rate-limit');
 const { createPool } = require('./db');
 const { version } = require('../package.json');
 
@@ -25,6 +26,15 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version }));
 
+// General ceiling on API abuse; auth routes layer their own tighter limiter on top.
+app.use('/api', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes, réessayez plus tard' },
+}));
+
 const pool = createPool();
 app.locals.db = pool;
 
@@ -45,6 +55,7 @@ const epiRouter = require('./routes/epi');
 const logbookRouter = require('./routes/logbook');
 const documentsRouter = require('./routes/documents');
 const searchRouter = require('./routes/search');
+const workOrdersRouter = require('./routes/workorders');
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
@@ -57,6 +68,17 @@ app.use('/api', epiRouter);
 app.use('/api', logbookRouter);
 app.use('/api', documentsRouter);
 app.use('/api', searchRouter);
+app.use('/api', workOrdersRouter);
+
+// Catch-all safety net for errors thrown outside a route's own try/catch
+// (e.g. a misconfigured middleware) — never let those fall through to
+// Express's default HTML error page.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(err);
+  const message = process.env.NODE_ENV === 'production' ? 'Erreur serveur' : err.message;
+  res.status(err.status || 500).json({ error: message });
+});
 
 let readyPromise = null;
 
