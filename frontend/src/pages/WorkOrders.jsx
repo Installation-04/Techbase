@@ -169,6 +169,23 @@ export default function WorkOrders() {
 
   const grouped = STATUS_ORDER.reduce((acc, s) => ({ ...acc, [s]: items.filter(i => i.status === s) }), {});
 
+  const exportCsv = () => {
+    const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Titre', 'Client', 'Équipement', 'Statut', 'Priorité', 'Assigné à', 'Échéance'];
+    const rows = items.map(i => [
+      i.title, i.client_name, i.equipment_name || '', STATUS_LABELS[i.status], PRIORITY_LABELS[i.priority],
+      i.assigned_to_name || '', i.due_date ? new Date(i.due_date).toLocaleDateString('fr-FR') : '',
+    ]);
+    const csv = [header, ...rows].map(row => row.map(escape).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bons-de-service-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -182,6 +199,7 @@ export default function WorkOrders() {
             <option value="">Tous les techniciens</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
+          <button onClick={exportCsv} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">Exporter CSV</button>
           <button onClick={() => setShowNew(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">+ Nouveau bon de service</button>
         </div>
       </div>

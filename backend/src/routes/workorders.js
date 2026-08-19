@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { serverError } = require('../lib/respond');
+const { notifyUser } = require('../lib/notify');
 
 const STATUSES = ['open', 'assigned', 'in_progress', 'done', 'cancelled'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -80,7 +81,19 @@ router.post('/clients/:clientId/work-orders', authenticate, validate({
       [req.params.clientId, equipment_id || null, title, description || null, priority || 'medium', status, assigned_to || null, due_date || null, req.user.id]
     );
     const full = await db.query(`${SELECT_WORK_ORDER} WHERE wo.id = $1`, [result.rows[0].id]);
-    res.status(201).json(full.rows[0]);
+    const workOrder = full.rows[0];
+    res.status(201).json(workOrder);
+
+    if (assigned_to) {
+      notifyUser(db, {
+        userId: assigned_to,
+        type: 'work_order_assigned',
+        message: `Vous avez été assigné au bon de service « ${workOrder.title} » (${workOrder.client_name})`,
+        link: '/work-orders',
+        emailSubject: `Nouveau bon de service assigné : ${workOrder.title}`,
+        emailHtml: `<p>Vous avez été assigné au bon de service <strong>${workOrder.title}</strong> pour le client <strong>${workOrder.client_name}</strong>.</p>`,
+      });
+    }
   } catch (err) {
     serverError(res, err);
   }
@@ -100,6 +113,10 @@ router.put('/work-orders/:id', authenticate, validate({
   const { title, description, status, priority, equipment_id, assigned_to, due_date } = req.body;
   const completedAt = status === 'done' ? 'NOW()' : 'NULL';
   try {
+    const before = await db.query('SELECT assigned_to FROM work_orders WHERE id = $1', [req.params.id]);
+    if (before.rows.length === 0) return res.status(404).json({ error: 'Bon de service non trouvé' });
+    const previousAssignee = before.rows[0].assigned_to;
+
     const result = await db.query(
       `UPDATE work_orders SET
          title=$1, description=$2, status=$3, priority=$4,
@@ -108,9 +125,21 @@ router.put('/work-orders/:id', authenticate, validate({
        WHERE id=$8 RETURNING id`,
       [title, description || null, status || 'open', priority || 'medium', equipment_id || null, assigned_to || null, due_date || null, req.params.id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Bon de service non trouvé' });
-    const full = await db.query(`${SELECT_WORK_ORDER} WHERE wo.id = $1`, [req.params.id]);
-    res.json(full.rows[0]);
+    const full = await db.query(`${SELECT_WORK_ORDER} WHERE wo.id = $1`, [result.rows[0].id]);
+    const workOrder = full.rows[0];
+    res.json(workOrder);
+
+    const newAssignee = assigned_to || null;
+    if (newAssignee && String(newAssignee) !== String(previousAssignee)) {
+      notifyUser(db, {
+        userId: newAssignee,
+        type: 'work_order_assigned',
+        message: `Vous avez été assigné au bon de service « ${workOrder.title} » (${workOrder.client_name})`,
+        link: '/work-orders',
+        emailSubject: `Nouveau bon de service assigné : ${workOrder.title}`,
+        emailHtml: `<p>Vous avez été assigné au bon de service <strong>${workOrder.title}</strong> pour le client <strong>${workOrder.client_name}</strong>.</p>`,
+      });
+    }
   } catch (err) {
     serverError(res, err);
   }

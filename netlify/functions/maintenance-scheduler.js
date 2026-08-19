@@ -1,8 +1,10 @@
 // Scheduled Netlify Function: runs daily, auto-creates a work order for any
 // equipment whose next_maintenance date is within 7 days and doesn't already
 // have an active auto-generated work order (enforced by a DB unique index,
-// as a second line of defense against duplicates on overlapping runs).
+// as a second line of defense against duplicates on overlapping runs). Also
+// emails admins a digest of overdue maintenance and low EPI stock.
 const { createPool } = require('../../backend/src/db');
+const { sendEmail } = require('../../backend/src/lib/email');
 
 exports.handler = async () => {
   const pool = createPool();
@@ -41,6 +43,9 @@ exports.handler = async () => {
     }
 
     console.log(`Maintenance scheduler: ${created} work order(s) created (${due.length} equipment due).`);
+
+    await sendAdminDigest(pool);
+
     return { statusCode: 200 };
   } catch (err) {
     console.error('Maintenance scheduler failed:', err);
@@ -49,5 +54,44 @@ exports.handler = async () => {
     await pool.end();
   }
 };
+
+async function sendAdminDigest(pool) {
+  if (!process.env.RESEND_API_KEY) return; // email is opt-in
+
+  const [overdueEquipment, lowStockEpi, admins] = await Promise.all([
+    pool.query(`
+      SELECT e.name, c.name AS client_name, e.next_maintenance
+      FROM equipment e JOIN clients c ON c.id = e.client_id
+      WHERE e.next_maintenance IS NOT NULL AND e.next_maintenance <= CURRENT_DATE
+      ORDER BY e.next_maintenance
+    `),
+    pool.query(`
+      SELECT ep.name, c.name AS client_name, ep.quantity
+      FROM epi ep JOIN clients c ON c.id = ep.client_id
+      WHERE ep.quantity <= 2
+      ORDER BY ep.quantity
+    `),
+    pool.query("SELECT email FROM users WHERE role = 'admin' AND email IS NOT NULL"),
+  ]);
+
+  if (overdueEquipment.rows.length === 0 && lowStockEpi.rows.length === 0) return;
+
+  const equipmentList = overdueEquipment.rows
+    .map(e => `<li>${e.name} (${e.client_name}) — échue le ${e.next_maintenance}</li>`)
+    .join('');
+  const epiList = lowStockEpi.rows
+    .map(e => `<li>${e.name} (${e.client_name}) — quantité restante : ${e.quantity}</li>`)
+    .join('');
+
+  const html = `
+    <h2>Résumé quotidien TechBase</h2>
+    ${overdueEquipment.rows.length > 0 ? `<h3>Maintenance en retard (${overdueEquipment.rows.length})</h3><ul>${equipmentList}</ul>` : ''}
+    ${lowStockEpi.rows.length > 0 ? `<h3>EPI en stock faible (${lowStockEpi.rows.length})</h3><ul>${epiList}</ul>` : ''}
+  `;
+
+  for (const admin of admins.rows) {
+    await sendEmail({ to: admin.email, subject: 'TechBase — résumé quotidien', html });
+  }
+}
 
 exports.config = { schedule: '@daily' };

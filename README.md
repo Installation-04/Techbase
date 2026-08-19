@@ -84,9 +84,18 @@ L'inscription ouverte est pratique pour démarrer, mais TechBase stocke des mots
 
 La page d'accueil propose une recherche globale sur l'ensemble des clients, équipements et contacts.
 
+## Tableau de bord
+
+La page d'accueil affiche des indicateurs en temps réel (`GET /api/dashboard/summary`) : nombre de clients, bons de service actifs, maintenance en retard, EPI en stock faible, répartition des bons de service par statut, et un graphique des interventions des 6 derniers mois. La page Bons de service propose un export CSV de la liste affichée (filtrée par technicien le cas échéant).
+
+## Notifications
+
+- **En application** : une cloche dans la barre supérieure affiche le nombre de notifications non lues (rafraîchi toutes les 60s) et un menu déroulant avec l'historique. Un technicien est notifié dès qu'un bon de service lui est assigné.
+- **Par courriel** (optionnel) : si `RESEND_API_KEY` est défini, les mêmes assignations déclenchent un courriel, et un résumé quotidien (maintenance en retard + EPI en stock faible, seuil ≤ 2) est envoyé à tous les admins par la Netlify Function planifiée. Sans cette variable, tout continue de fonctionner — seules les notifications en application sont actives. Obtenir une clé sur [resend.com](https://resend.com) (aucune autre configuration requise).
+
 ## Génération automatique des bons de service
 
-Une Netlify Function planifiée (`netlify/functions/maintenance-scheduler.js`, exécutée quotidiennement) crée automatiquement un bon de service préventif pour tout équipement dont la date de prochaine maintenance (`next_maintenance`) tombe dans les 7 prochains jours — sans doublon (contrainte unique en base tant qu'un bon de service auto-généré est actif pour cet équipement).
+Une Netlify Function planifiée (`netlify/functions/maintenance-scheduler.js`, exécutée quotidiennement) crée automatiquement un bon de service préventif pour tout équipement dont la date de prochaine maintenance (`next_maintenance`) tombe dans les 7 prochains jours — sans doublon (contrainte unique en base tant qu'un bon de service auto-généré est actif pour cet équipement). La même fonction envoie le résumé quotidien par courriel (voir Notifications ci-dessus).
 
 ## Fiabilité de la plateforme
 
@@ -121,16 +130,17 @@ techbase/
 │       ├── index.js           # Point d'entrée standalone (Docker)
 │       ├── db.js              # Pool Postgres (Netlify DB ou DB_* selon l'environnement)
 │       ├── middleware/       # auth, validate
-│       ├── lib/               # token, respond (réponses d'erreur centralisées)
-│       └── routes/          # auth, users, clients, equipment, work-orders, procedures,
-│                            # passwords, contacts, epi, logbook, documents, search
+│       ├── lib/               # token, respond, email, notify
+│       └── routes/          # auth, users, clients, equipment, work-orders, dashboard,
+│                            # notifications, procedures, passwords, contacts, epi,
+│                            # logbook, documents, search
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
     └── src/
         ├── App.jsx
         ├── contexts/AuthContext.jsx
-        ├── components/      # Layout, Sidebar, ProtectedRoute, GlobalSearch
+        ├── components/      # Layout, Sidebar, ProtectedRoute, GlobalSearch, NotificationBell
         └── pages/           # Login, AuthCallback, Home, Clients, ClientDetail,
                              # WorkOrders, Procedures, Users
 ```
