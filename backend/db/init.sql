@@ -140,6 +140,16 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS erp_links (
+  id SERIAL PRIMARY KEY,
+  provider VARCHAR(50) NOT NULL,
+  entity_type VARCHAR(50) NOT NULL,
+  local_id INTEGER NOT NULL,
+  remote_id VARCHAR(100) NOT NULL,
+  last_synced_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_equipment_client_id ON equipment(client_id);
 CREATE INDEX IF NOT EXISTS idx_procedures_client_id ON procedures(client_id);
 CREATE INDEX IF NOT EXISTS idx_passwords_client_id ON passwords(client_id);
@@ -161,6 +171,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_work_orders_one_active_auto_per_equipment
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id) WHERE read = FALSE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_erp_links_local ON erp_links(provider, entity_type, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_erp_links_remote ON erp_links(provider, entity_type, remote_id);
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_clients_name_trgm ON clients USING GIN (name gin_trgm_ops);
