@@ -84,13 +84,13 @@ async function sendAdminDigest(pool) {
     .join('');
 
   const html = `
-    <h2>Résumé quotidien TechBase</h2>
+    <h2>Résumé quotidien TechIBase</h2>
     ${overdueEquipment.rows.length > 0 ? `<h3>Maintenance en retard (${overdueEquipment.rows.length})</h3><ul>${equipmentList}</ul>` : ''}
     ${lowStockEpi.rows.length > 0 ? `<h3>EPI en stock faible (${lowStockEpi.rows.length})</h3><ul>${epiList}</ul>` : ''}
   `;
 
   for (const admin of admins.rows) {
-    await sendEmail({ to: admin.email, subject: 'TechBase — résumé quotidien', html });
+    await sendEmail({ to: admin.email, subject: 'TechIBase — résumé quotidien', html });
   }
 }
 

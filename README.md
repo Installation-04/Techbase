@@ -1,4 +1,4 @@
-# TechBase
+# TechIBase
 
 Application de gestion pour techniciens de terrain. Centralise toutes les informations critiques pour réduire le temps de réponse lors des interventions.
 
@@ -79,7 +79,7 @@ Trois façons de se connecter, configurables indépendamment :
 
 ### Note sur l'auto-inscription
 
-L'inscription ouverte est pratique pour démarrer, mais TechBase stocke des mots de passe/identifiants clients — une fois l'admin initial créé, il est recommandé de retirer l'inscription publique (ou de la limiter par domaine d'email) pour un usage en production. Ce n'est pas encore implémenté ; à faire évoluer selon les besoins (ex. liste blanche de domaines, invitation par un admin).
+L'inscription ouverte est pratique pour démarrer, mais TechIBase stocke des mots de passe/identifiants clients — une fois l'admin initial créé, il est recommandé de retirer l'inscription publique (ou de la limiter par domaine d'email) pour un usage en production. Ce n'est pas encore implémenté ; à faire évoluer selon les besoins (ex. liste blanche de domaines, invitation par un admin).
 
 ## Modules
 
@@ -116,11 +116,11 @@ Une Netlify Function planifiée (`netlify/functions/maintenance-scheduler.js`, e
 
 ## Intégration ERP
 
-TechBase peut synchroniser ses clients avec un ERP externe. Le premier connecteur implémenté est **Acumatica** (API REST « contract-based », authentification par session).
+TechIBase peut synchroniser ses clients avec un ERP externe. Le premier connecteur implémenté est **Acumatica** (API REST « contract-based », authentification par session).
 
-- **Par utilisateur, pas par déploiement** : chaque utilisateur connecte son propre compte Acumatica (URL d'instance, identifiants, société/tenant) depuis l'onglet « Intégrations » de n'importe quelle fiche client. C'est essentiel dès que plusieurs entrepreneurs/sociétés partagent le même déploiement TechBase — chacun synchronise ses clients vers son propre tenant Acumatica, jamais vers celui d'un autre utilisateur. Les identifiants sont chiffrés (AES-256, même mécanisme que le coffre-fort de mots de passe, avec un sel distinct) dans `user_integration_credentials`.
-- **Ce qui est synchronisé** : Clients TechBase ↔ Customers Acumatica (nom, courriel, téléphone, adresse). La synchronisation est **manuelle** — un bouton « Synchroniser avec Acumatica » par fiche client, plutôt qu'un sync automatique qui pourrait créer des conflits sans supervision.
-- **Idempotent, par utilisateur** : la table `erp_links` retient, pour chaque (utilisateur, client TechBase), le `CustomerID` Acumatica correspondant — deux utilisateurs peuvent donc synchroniser le même client TechBase vers deux comptes Acumatica différents sans collision, et resynchroniser met à jour le même enregistrement au lieu d'en créer un nouveau.
+- **Par utilisateur, pas par déploiement** : chaque utilisateur connecte son propre compte Acumatica (URL d'instance, identifiants, société/tenant) depuis l'onglet « Intégrations » de n'importe quelle fiche client. C'est essentiel dès que plusieurs entrepreneurs/sociétés partagent le même déploiement TechIBase — chacun synchronise ses clients vers son propre tenant Acumatica, jamais vers celui d'un autre utilisateur. Les identifiants sont chiffrés (AES-256, même mécanisme que le coffre-fort de mots de passe, avec un sel distinct) dans `user_integration_credentials`.
+- **Ce qui est synchronisé** : Clients TechIBase ↔ Customers Acumatica (nom, courriel, téléphone, adresse). La synchronisation est **manuelle** — un bouton « Synchroniser avec Acumatica » par fiche client, plutôt qu'un sync automatique qui pourrait créer des conflits sans supervision.
+- **Idempotent, par utilisateur** : la table `erp_links` retient, pour chaque (utilisateur, client TechIBase), le `CustomerID` Acumatica correspondant — deux utilisateurs peuvent donc synchroniser le même client TechIBase vers deux comptes Acumatica différents sans collision, et resynchroniser met à jour le même enregistrement au lieu d'en créer un nouveau.
 - **Compte partagé optionnel** : si `ACUMATICA_BASE_URL`/`ACUMATICA_USERNAME`/`ACUMATICA_PASSWORD`/`ACUMATICA_COMPANY` (voir `.env.example`) sont définis comme variables d'environnement du déploiement, ils servent de compte de repli pour tout utilisateur n'ayant pas encore connecté le sien — utile pour une entreprise unique qui préfère une configuration centralisée. Un utilisateur qui connecte son propre compte l'utilise à la place.
 - **Tester la connexion** : `POST /api/integrations/acumatica/test` (avec mes identifiants) tente une connexion/déconnexion sans toucher aux données, utile pour valider les identifiants.
 - **Extensibilité** : le code est structuré pour ajouter d'autres ERP facilement — `backend/src/integrations/<provider>.js` pour le client API, monté dans `backend/src/routes/integrations.js`, les tables `erp_links` et `user_integration_credentials` étant déjà génériques (`provider`, `entity_type`). Aucun autre connecteur (SAP, NetSuite, Dynamics, etc.) n'est implémenté pour l'instant.

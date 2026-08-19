@@ -37,7 +37,7 @@ export default function Layout({ children }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="text-xl font-bold text-blue-400">TechBase</span>
+          <span className="text-xl font-bold text-blue-400">TechIBase</span>
           <div className="ml-auto">
             <NotificationBell dark />
           </div>
