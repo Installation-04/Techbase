@@ -8,6 +8,7 @@ const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 const Home = lazy(() => import('./pages/Home'));
 const Clients = lazy(() => import('./pages/Clients'));
 const ClientDetail = lazy(() => import('./pages/ClientDetail'));
+const WorkOrders = lazy(() => import('./pages/WorkOrders'));
 const Procedures = lazy(() => import('./pages/Procedures'));
 const Users = lazy(() => import('./pages/Users'));
 
@@ -43,6 +44,16 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <ClientDetail />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/work-orders"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <WorkOrders />
             </Layout>
           </ProtectedRoute>
         }

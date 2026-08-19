@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
+const { serverError } = require('../lib/respond');
 
 const ALGORITHM = 'aes-256-cbc';
 const SECRET_KEY = process.env.JWT_SECRET || 'change_this_secret_in_production_dev_only';
@@ -34,7 +35,7 @@ router.get('/clients/:clientId/passwords', authenticate, async (req, res) => {
     }));
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -51,7 +52,7 @@ router.post('/clients/:clientId/passwords', authenticate, async (req, res) => {
     const row = result.rows[0];
     res.status(201).json({ ...row, password: decrypt(row.encrypted_password) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -77,7 +78,7 @@ router.put('/clients/:clientId/passwords/:id', authenticate, async (req, res) =>
     const row = result.rows[0];
     res.json({ ...row, password: decrypt(row.encrypted_password) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -87,7 +88,7 @@ router.delete('/clients/:clientId/passwords/:id', authenticate, async (req, res)
     await db.query('DELETE FROM passwords WHERE id=$1 AND client_id=$2', [req.params.id, req.params.clientId]);
     res.json({ message: 'Mot de passe supprimé' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
