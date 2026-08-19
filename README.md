@@ -12,6 +12,22 @@ Le projet est actuellement en **bêta** (versions `0.0.x`, sous le `1.0.0`). Le 
 
 Le premier `1.0.0` marquera la sortie de bêta.
 
+### Historique des versions
+
+Voir [CHANGELOG.md](CHANGELOG.md) pour le détail de chaque version publiée.
+
+### Créer une release GitHub
+
+Après avoir mergé et déployé une nouvelle version, créer un tag et une release GitHub correspondants :
+
+```bash
+git checkout main && git pull origin main
+git tag -a v0.0.x -m "v0.0.x - résumé court"
+git push origin v0.0.x
+```
+
+Puis, sur GitHub → **Releases** → **Draft a new release**, choisir le tag `v0.0.x`, coller la section correspondante du [CHANGELOG.md](CHANGELOG.md) comme description, et cocher **Set as a pre-release** tant que le projet est en `0.0.x` bêta.
+
 ## Stack
 
 - **Frontend:** React + Vite, Tailwind CSS, React Router
