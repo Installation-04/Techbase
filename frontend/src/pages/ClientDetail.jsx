@@ -666,17 +666,83 @@ function DocumentsTab({ clientId }) {
   );
 }
 
-// ---- Integrations Tab (ERP sync) ----
+// ---- Integrations Tab (ERP sync — per-user Acumatica account) ----
+function AcumaticaConnectForm({ prefill, onConnected, sharedFallbackAvailable }) {
+  const [form, setForm] = useState({
+    base_url: prefill?.base_url || '',
+    username: prefill?.username || '',
+    password: '',
+    company: prefill?.company || '',
+    branch: prefill?.branch || '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await axios.put('/api/integrations/acumatica/credentials', form);
+      onConnected();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erreur');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md">
+      {sharedFallbackAvailable && (
+        <p className="text-sm text-blue-700 bg-blue-50 rounded-lg p-3 mb-4">
+          Un compte Acumatica partagé est configuré pour ce déploiement — connectez le vôtre ci-dessous pour synchroniser vers votre propre compte à la place.
+        </p>
+      )}
+      <form onSubmit={handleSubmit} className="bg-gray-50 rounded-xl p-4 space-y-3">
+        <p className="font-medium text-gray-900 mb-1">Connecter mon compte Acumatica</p>
+        {error && <p className="text-red-600 text-sm bg-red-50 p-2 rounded">{error}</p>}
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">URL de l'instance *</label>
+          <input value={form.base_url} onChange={e => setForm(f => ({ ...f, base_url: e.target.value }))} placeholder="https://votre-instance.acumatica.com" required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Nom d'utilisateur *</label>
+            <input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Mot de passe *</label>
+            <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Société (tenant) *</label>
+            <input value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Succursale</label>
+            <input value={form.branch} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+        </div>
+        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm">
+          {loading ? 'Connexion...' : 'Connecter'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function IntegrationsTab({ clientId }) {
-  const [configured, setConfigured] = useState(false);
+  const [account, setAccount] = useState(null); // { connected, credentials, sharedFallbackAvailable }
   const [link, setLink] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    const statusRes = await axios.get('/api/integrations/acumatica/status');
-    setConfigured(statusRes.data.configured);
-    if (!statusRes.data.configured) return;
+    const accountRes = await axios.get('/api/integrations/acumatica/credentials');
+    setAccount(accountRes.data);
     const linksRes = await axios.get('/api/integrations/acumatica/link-status');
     setLink(linksRes.data.find(l => String(l.client_id) === String(clientId)) || null);
   }, [clientId]);
@@ -696,20 +762,69 @@ function IntegrationsTab({ clientId }) {
     }
   };
 
-  if (!configured) {
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      await axios.post('/api/integrations/acumatica/test');
+      setTestResult({ ok: true });
+    } catch (err) {
+      setTestResult({ ok: false, message: err.response?.data?.error || 'Échec du test' });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!confirm('Déconnecter votre compte Acumatica ?')) return;
+    await axios.delete('/api/integrations/acumatica/credentials');
+    await refresh();
+  };
+
+  if (!account) return null;
+
+  const usingSharedFallback = !account.connected && account.sharedFallbackAvailable;
+
+  if (!account.connected && !usingSharedFallback) {
     return (
-      <div className="text-center text-gray-400 py-8">
-        <p>L'intégration Acumatica n'est pas configurée pour ce déploiement.</p>
-        <p className="text-xs mt-1">Voir le README pour les variables d'environnement requises.</p>
-      </div>
+      <AcumaticaConnectForm prefill={null} sharedFallbackAvailable={account.sharedFallbackAvailable} onConnected={refresh} />
     );
   }
 
   return (
-    <div className="max-w-md">
+    <div className="max-w-md space-y-4">
       <div className="bg-gray-50 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="font-medium text-gray-900">Acumatica ERP</p>
+          <p className="font-medium text-gray-900">Mon compte Acumatica</p>
+          <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
+            {usingSharedFallback ? 'Compte partagé' : 'Connecté'}
+          </span>
+        </div>
+        {account.credentials && (
+          <p className="text-sm text-gray-500">
+            {account.credentials.base_url} · {account.credentials.company}
+          </p>
+        )}
+        <div className="flex gap-2 mt-3">
+          <button onClick={handleTest} disabled={testing} className="px-3 py-1.5 text-xs bg-white border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50">
+            {testing ? 'Test...' : 'Tester la connexion'}
+          </button>
+          {!usingSharedFallback && (
+            <button onClick={handleDisconnect} className="px-3 py-1.5 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded">
+              Déconnecter
+            </button>
+          )}
+        </div>
+        {testResult && (
+          <p className={`text-xs mt-2 ${testResult.ok ? 'text-green-600' : 'text-red-600'}`}>
+            {testResult.ok ? 'Connexion réussie ✓' : testResult.message}
+          </p>
+        )}
+      </div>
+
+      <div className="bg-gray-50 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-medium text-gray-900">Ce client</p>
           {link ? (
             <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Synchronisé</span>
           ) : (
@@ -748,7 +863,7 @@ const TABS = [
   { id: 'epi', label: 'EPI', component: EpiTab },
   { id: 'logbook', label: 'Journal', component: LogbookTab },
   { id: 'documents', label: 'Documents', component: DocumentsTab },
-  { id: 'integrations', label: 'Intégrations', component: IntegrationsTab, adminOnly: true },
+  { id: 'integrations', label: 'Intégrations', component: IntegrationsTab },
 ];
 
 export default function ClientDetail() {

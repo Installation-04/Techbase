@@ -1,21 +1,34 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { isConfigured, clientToCustomerPayload } = require('../src/integrations/acumatica');
+const { isConfigured, clientToCustomerPayload, envCreds } = require('../src/integrations/acumatica');
 
-test('isConfigured is false when env vars are unset', () => {
+test('isConfigured is false for an empty/partial creds object', () => {
+  assert.equal(isConfigured(null), false);
+  assert.equal(isConfigured({}), false);
+  assert.equal(isConfigured({ baseUrl: 'https://example.acumatica.com' }), false);
+});
+
+test('isConfigured is true once base URL, credentials, and company are set', () => {
+  assert.equal(isConfigured({
+    baseUrl: 'https://example.acumatica.com',
+    username: 'api-user',
+    password: 'secret',
+    company: 'MyCompany',
+  }), true);
+});
+
+test('envCreds reads the optional deployment-wide fallback from env vars', () => {
   delete process.env.ACUMATICA_BASE_URL;
   delete process.env.ACUMATICA_USERNAME;
   delete process.env.ACUMATICA_PASSWORD;
   delete process.env.ACUMATICA_COMPANY;
-  assert.equal(isConfigured(), false);
-});
+  assert.equal(isConfigured(envCreds()), false);
 
-test('isConfigured is true once base URL, credentials, and company are set', () => {
   process.env.ACUMATICA_BASE_URL = 'https://example.acumatica.com';
   process.env.ACUMATICA_USERNAME = 'api-user';
   process.env.ACUMATICA_PASSWORD = 'secret';
   process.env.ACUMATICA_COMPANY = 'MyCompany';
-  assert.equal(isConfigured(), true);
+  assert.equal(isConfigured(envCreds()), true);
   delete process.env.ACUMATICA_BASE_URL;
   delete process.env.ACUMATICA_USERNAME;
   delete process.env.ACUMATICA_PASSWORD;
