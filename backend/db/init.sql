@@ -140,8 +140,11 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Per-user ERP link/credentials: each user syncs their own clients into
+-- their own ERP tenant, not one shared instance-wide account.
 CREATE TABLE IF NOT EXISTS erp_links (
   id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
   provider VARCHAR(50) NOT NULL,
   entity_type VARCHAR(50) NOT NULL,
   local_id INTEGER NOT NULL,
@@ -149,6 +152,24 @@ CREATE TABLE IF NOT EXISTS erp_links (
   last_synced_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS user_integration_credentials (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider VARCHAR(50) NOT NULL,
+  base_url VARCHAR(500) NOT NULL,
+  username VARCHAR(255) NOT NULL,
+  encrypted_password TEXT NOT NULL,
+  company VARCHAR(255) NOT NULL,
+  branch VARCHAR(255),
+  endpoint_name VARCHAR(100) NOT NULL DEFAULT 'Default',
+  endpoint_version VARCHAR(50) NOT NULL DEFAULT '24.200.001',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_integration_credentials
+  ON user_integration_credentials(user_id, provider);
 
 CREATE INDEX IF NOT EXISTS idx_equipment_client_id ON equipment(client_id);
 CREATE INDEX IF NOT EXISTS idx_procedures_client_id ON procedures(client_id);
@@ -172,8 +193,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_work_orders_one_active_auto_per_equipment
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id) WHERE read = FALSE;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_erp_links_local ON erp_links(provider, entity_type, local_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_erp_links_remote ON erp_links(provider, entity_type, remote_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_erp_links_local ON erp_links(user_id, provider, entity_type, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_erp_links_remote ON erp_links(user_id, provider, entity_type, remote_id);
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_clients_name_trgm ON clients USING GIN (name gin_trgm_ops);

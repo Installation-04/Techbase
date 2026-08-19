@@ -1,16 +1,16 @@
 // Acumatica contract-based REST API client (session-cookie auth).
-// Docs: https://help.acumatica.com/Help?ScreenId=ShowWiki&pageid=... "Contract-Based REST API"
+// Docs: Acumatica "Contract-Based REST API".
 //
-// Configuration (all via env vars, unset = integration disabled):
-//   ACUMATICA_BASE_URL       e.g. https://mycompany.acumatica.com
-//   ACUMATICA_USERNAME       API-enabled user
-//   ACUMATICA_PASSWORD
-//   ACUMATICA_COMPANY        tenant/company name in Acumatica
-//   ACUMATICA_BRANCH         optional
-//   ACUMATICA_ENDPOINT_NAME  optional, default "Default"
-//   ACUMATICA_ENDPOINT_VERSION  optional, default "24.200.001"
+// Credentials are per-user (each user connects their own Acumatica
+// tenant — see backend/src/routes/integrations.js), passed in explicitly
+// as a `creds` object rather than read from process.env:
+//   { baseUrl, username, password, company, branch, endpointName, endpointVersion }
+//
+// envCreds() below reads the optional deployment-wide fallback env vars
+// (ACUMATICA_BASE_URL etc.), used only when a user hasn't connected their
+// own account.
 
-function config() {
+function envCreds() {
   return {
     baseUrl: process.env.ACUMATICA_BASE_URL,
     username: process.env.ACUMATICA_USERNAME,
@@ -22,26 +22,25 @@ function config() {
   };
 }
 
-function isConfigured() {
-  const c = config();
-  return !!(c.baseUrl && c.username && c.password && c.company);
+function isConfigured(creds) {
+  return !!(creds && creds.baseUrl && creds.username && creds.password && creds.company);
 }
 
-function entityUrl(path) {
-  const c = config();
-  return `${c.baseUrl.replace(/\/$/, '')}/entity/${c.endpointName}/${c.endpointVersion}/${path}`;
+function entityUrl(creds, path) {
+  const endpointName = creds.endpointName || 'Default';
+  const endpointVersion = creds.endpointVersion || '24.200.001';
+  return `${creds.baseUrl.replace(/\/$/, '')}/entity/${endpointName}/${endpointVersion}/${path}`;
 }
 
-async function login() {
-  const c = config();
-  const res = await fetch(`${c.baseUrl.replace(/\/$/, '')}/entity/auth/login`, {
+async function login(creds) {
+  const res = await fetch(`${creds.baseUrl.replace(/\/$/, '')}/entity/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      name: c.username,
-      password: c.password,
-      company: c.company,
-      branch: c.branch || undefined,
+      name: creds.username,
+      password: creds.password,
+      company: creds.company,
+      branch: creds.branch || undefined,
     }),
   });
   if (!res.ok) {
@@ -54,21 +53,20 @@ async function login() {
   return cookie;
 }
 
-async function logout(cookie) {
-  const c = config();
-  await fetch(`${c.baseUrl.replace(/\/$/, '')}/entity/auth/logout`, {
+async function logout(creds, cookie) {
+  await fetch(`${creds.baseUrl.replace(/\/$/, '')}/entity/auth/logout`, {
     method: 'POST',
     headers: { Cookie: cookie },
   }).catch(() => {});
 }
 
-async function withSession(fn) {
-  if (!isConfigured()) throw new Error('Intégration Acumatica non configurée');
-  const cookie = await login();
+async function withSession(creds, fn) {
+  if (!isConfigured(creds)) throw new Error('Identifiants Acumatica manquants');
+  const cookie = await login(creds);
   try {
     return await fn(cookie);
   } finally {
-    await logout(cookie);
+    await logout(creds, cookie);
   }
 }
 
@@ -88,18 +86,18 @@ function clientToCustomerPayload(client, existingCustomerId) {
   return payload;
 }
 
-async function testConnection() {
-  await withSession(async (cookie) => {
-    const res = await fetch(`${entityUrl('Customer')}?$top=1`, { headers: { Cookie: cookie } });
+async function testConnection(creds) {
+  await withSession(creds, async (cookie) => {
+    const res = await fetch(`${entityUrl(creds, 'Customer')}?$top=1`, { headers: { Cookie: cookie } });
     if (!res.ok) throw new Error(`Requête de test Acumatica échouée : ${res.status}`);
   });
 }
 
 // Creates the customer if existingCustomerId is omitted, otherwise updates it.
 // Returns the Acumatica CustomerID.
-async function pushCustomer(client, existingCustomerId) {
-  return withSession(async (cookie) => {
-    const res = await fetch(entityUrl('Customer'), {
+async function pushCustomer(creds, client, existingCustomerId) {
+  return withSession(creds, async (cookie) => {
+    const res = await fetch(entityUrl(creds, 'Customer'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Cookie: cookie },
       body: JSON.stringify(clientToCustomerPayload(client, existingCustomerId)),
@@ -110,12 +108,4 @@ async function pushCustomer(client, existingCustomerId) {
   });
 }
 
-async function listCustomers({ top = 50 } = {}) {
-  return withSession(async (cookie) => {
-    const res = await fetch(`${entityUrl('Customer')}?$top=${top}`, { headers: { Cookie: cookie } });
-    if (!res.ok) throw new Error(`Échec de récupération Acumatica : ${res.status} ${await res.text()}`);
-    return res.json();
-  });
-}
-
-module.exports = { isConfigured, testConnection, pushCustomer, listCustomers, clientToCustomerPayload };
+module.exports = { envCreds, isConfigured, testConnection, pushCustomer, clientToCustomerPayload };
