@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { serverError } = require('../lib/respond');
 
 router.get('/clients/:clientId/logbook', authenticate, async (req, res) => {
   const db = req.app.locals.db;
@@ -11,7 +12,7 @@ router.get('/clients/:clientId/logbook', authenticate, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -26,7 +27,7 @@ router.post('/clients/:clientId/logbook', authenticate, async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -41,7 +42,7 @@ router.put('/clients/:clientId/logbook/:id', authenticate, async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Entrée non trouvée' });
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -51,7 +52,7 @@ router.delete('/clients/:clientId/logbook/:id', authenticate, async (req, res) =
     await db.query('DELETE FROM logbook WHERE id=$1 AND client_id=$2', [req.params.id, req.params.clientId]);
     res.json({ message: 'Entrée supprimée' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 

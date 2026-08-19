@@ -25,6 +25,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       JWT_SECRET: ${JWT_SECRET:-change_this_secret_in_production}
       NODE_ENV: ${NODE_ENV:-production}
+      UPLOADS_DIR: /app/uploads
     ports:
       - "3001:3001"
     depends_on:

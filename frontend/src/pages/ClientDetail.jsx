@@ -467,6 +467,108 @@ function LogbookTab({ clientId }) {
   );
 }
 
+// ---- Work Orders Tab ----
+const WO_STATUS_LABELS = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', done: 'Terminé', cancelled: 'Annulé' };
+const WO_STATUS_COLORS = {
+  open: 'bg-gray-100 text-gray-700',
+  assigned: 'bg-blue-100 text-blue-700',
+  in_progress: 'bg-amber-100 text-amber-700',
+  done: 'bg-green-100 text-green-700',
+  cancelled: 'bg-red-100 text-red-700',
+};
+const WO_PRIORITY_LABELS = { low: 'Basse', medium: 'Moyenne', high: 'Haute', urgent: 'Urgente' };
+const WO_PRIORITY_COLORS = {
+  low: 'text-gray-500',
+  medium: 'text-blue-600',
+  high: 'text-orange-600',
+  urgent: 'text-red-600 font-semibold',
+};
+
+function WorkOrdersTab({ clientId }) {
+  const [items, setItems] = useState([]);
+  const [equipment, setEquipment] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [modal, setModal] = useState(null);
+
+  const fetch = useCallback(async () => {
+    const res = await axios.get(`/api/clients/${clientId}/work-orders`);
+    setItems(res.data);
+  }, [clientId]);
+
+  useEffect(() => {
+    fetch();
+    axios.get(`/api/clients/${clientId}/equipment`).then(res => setEquipment(res.data));
+    axios.get('/api/users/assignable').then(res => setUsers(res.data));
+  }, [fetch, clientId]);
+
+  const fields = [
+    { key: 'title', label: 'Titre *', required: true },
+    { key: 'description', label: 'Description', type: 'textarea' },
+    {
+      key: 'equipment_id', label: 'Équipement', type: 'select',
+      options: [{ value: '', label: '—' }, ...equipment.map(e => ({ value: e.id, label: e.name }))],
+    },
+    {
+      key: 'assigned_to', label: 'Assigné à', type: 'select',
+      options: [{ value: '', label: 'Non assigné' }, ...users.map(u => ({ value: u.id, label: u.name }))],
+    },
+    { key: 'priority', label: 'Priorité', type: 'select', options: Object.entries(WO_PRIORITY_LABELS).map(([value, label]) => ({ value, label })) },
+    { key: 'due_date', label: 'Échéance', type: 'date' },
+  ];
+
+  const editFields = modal?.id
+    ? [...fields, { key: 'status', label: 'Statut', type: 'select', options: Object.entries(WO_STATUS_LABELS).map(([value, label]) => ({ value, label })) }]
+    : fields;
+
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <button onClick={() => setModal({ priority: 'medium' })} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">+ Nouvel ordre</button>
+      </div>
+      <div className="space-y-3">
+        {items.map(item => (
+          <div key={item.id} className="bg-gray-50 rounded-xl p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <p className="font-medium text-gray-900">{item.title}</p>
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${WO_STATUS_COLORS[item.status]}`}>{WO_STATUS_LABELS[item.status]}</span>
+                  <span className={`text-xs ${WO_PRIORITY_COLORS[item.priority]}`}>{WO_PRIORITY_LABELS[item.priority]}</span>
+                  {item.auto_generated && <span className="text-xs text-gray-400">· auto</span>}
+                </div>
+                {item.description && <p className="text-sm text-gray-600 whitespace-pre-wrap">{item.description}</p>}
+                <p className="text-xs text-gray-400 mt-2">
+                  {item.equipment_name && `${item.equipment_name} · `}
+                  {item.assigned_to_name ? `Assigné à ${item.assigned_to_name}` : 'Non assigné'}
+                  {item.due_date && ` · Échéance ${new Date(item.due_date).toLocaleDateString('fr-FR')}`}
+                </p>
+              </div>
+              <div className="flex gap-2 ml-4">
+                <button onClick={() => setModal({ ...item, due_date: item.due_date ? item.due_date.slice(0, 10) : '' })} className="px-3 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-100">Modifier</button>
+                <button onClick={async () => { if (confirm('Supprimer ?')) { await axios.delete(`/api/work-orders/${item.id}`); fetch(); } }} className="px-3 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded">Supprimer</button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && <p className="text-center text-gray-400 py-8">Aucun ordre de travail</p>}
+      </div>
+      {modal !== null && (
+        <GenericModal
+          title={modal.id ? "Modifier l'ordre de travail" : 'Nouvel ordre de travail'}
+          fields={editFields}
+          initialData={modal}
+          onClose={() => setModal(null)}
+          onSave={async (data) => {
+            if (modal.id) await axios.put(`/api/work-orders/${modal.id}`, data);
+            else await axios.post(`/api/clients/${clientId}/work-orders`, data);
+            fetch();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 // ---- Documents Tab ----
 function DocumentsTab({ clientId }) {
   const [items, setItems] = useState([]);
@@ -566,6 +668,7 @@ function DocumentsTab({ clientId }) {
 // ---- Main ClientDetail Page ----
 const TABS = [
   { id: 'equipment', label: 'Équipements', component: EquipmentTab },
+  { id: 'workorders', label: 'Ordres de travail', component: WorkOrdersTab },
   { id: 'procedures', label: 'Procédures', component: ProceduresTab },
   { id: 'passwords', label: 'Mots de passe', component: PasswordsTab },
   { id: 'contacts', label: 'Contacts', component: ContactsTab },

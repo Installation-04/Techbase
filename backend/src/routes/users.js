@@ -4,6 +4,10 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { issueToken } = require('../lib/token');
+const { serverError } = require('../lib/respond');
+const { validate } = require('../middleware/validate');
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -16,11 +20,13 @@ const loginLimiter = rateLimit({
 // POST /api/users/register
 // Open self-registration. The very first account created (local or SSO)
 // becomes admin; everyone after that gets the default 'user' role.
-router.post('/register', loginLimiter, async (req, res) => {
+router.post('/register', loginLimiter, validate({
+  email: { required: true, type: 'string', maxLength: 255, pattern: EMAIL_PATTERN },
+  password: { required: true, type: 'string', minLength: 8, maxLength: 255 },
+  name: { required: true, type: 'string', maxLength: 255 },
+}), async (req, res) => {
   const db = req.app.locals.db;
   const { email, password, name } = req.body;
-  if (!email || !password || !name) return res.status(400).json({ error: 'Champs requis manquants' });
-  if (password.length < 8) return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
   try {
     const countResult = await db.query('SELECT COUNT(*)::int AS count FROM users');
     const role = countResult.rows[0].count === 0 ? 'admin' : 'user';
@@ -33,15 +39,17 @@ router.post('/register', loginLimiter, async (req, res) => {
     res.status(201).json({ token: issueToken(user), user });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email déjà utilisé' });
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
 // POST /api/users/login
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginLimiter, validate({
+  email: { required: true, type: 'string' },
+  password: { required: true, type: 'string' },
+}), async (req, res) => {
   const db = req.app.locals.db;
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' });
   try {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) return res.status(401).json({ error: 'Identifiants invalides' });
@@ -53,7 +61,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Identifiants invalides' });
     res.json({ token: issueToken(user), user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -65,7 +73,19 @@ router.get('/me', authenticate, async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Utilisateur non trouvé' });
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
+  }
+});
+
+// GET /api/users/assignable — minimal user list any authenticated user can
+// read, for populating work-order assignment dropdowns (no email/dates).
+router.get('/assignable', authenticate, async (req, res) => {
+  const db = req.app.locals.db;
+  try {
+    const result = await db.query('SELECT id, name, role FROM users ORDER BY name');
+    res.json(result.rows);
+  } catch (err) {
+    serverError(res, err);
   }
 });
 
@@ -76,15 +96,19 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
     const result = await db.query('SELECT id, email, name, role, created_at FROM users ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
 // POST /api/users (admin)
-router.post('/', authenticate, requireAdmin, async (req, res) => {
+router.post('/', authenticate, requireAdmin, validate({
+  email: { required: true, type: 'string', maxLength: 255, pattern: EMAIL_PATTERN },
+  password: { required: true, type: 'string', minLength: 8, maxLength: 255 },
+  name: { required: true, type: 'string', maxLength: 255 },
+  role: { type: 'string', enum: ['admin', 'user'] },
+}), async (req, res) => {
   const db = req.app.locals.db;
   const { email, password, name, role } = req.body;
-  if (!email || !password || !name) return res.status(400).json({ error: 'Champs requis manquants' });
   try {
     const hash = await bcrypt.hash(password, 10);
     const result = await db.query(
@@ -94,12 +118,17 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email déjà utilisé' });
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
 // PUT /api/users/:id (admin)
-router.put('/:id', authenticate, requireAdmin, async (req, res) => {
+router.put('/:id', authenticate, requireAdmin, validate({
+  email: { required: true, type: 'string', maxLength: 255, pattern: EMAIL_PATTERN },
+  password: { type: 'string', minLength: 8, maxLength: 255 },
+  name: { required: true, type: 'string', maxLength: 255 },
+  role: { required: true, type: 'string', enum: ['admin', 'user'] },
+}), async (req, res) => {
   const db = req.app.locals.db;
   const { email, password, name, role } = req.body;
   try {
@@ -116,7 +145,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Utilisateur non trouvé' });
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -130,7 +159,7 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
     await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
     res.json({ message: 'Utilisateur supprimé' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 

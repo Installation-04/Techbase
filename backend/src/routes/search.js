@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { serverError } = require('../lib/respond');
 
 router.get('/search', authenticate, async (req, res) => {
   const db = req.app.locals.db;
@@ -24,7 +25,7 @@ router.get('/search', authenticate, async (req, res) => {
     ]);
     res.json({ clients: clients.rows, equipment: equipment.rows, contacts: contacts.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 

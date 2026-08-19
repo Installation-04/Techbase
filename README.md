@@ -71,6 +71,7 @@ L'inscription ouverte est pratique pour démarrer, mais TechBase stocke des mots
 |--------|-------------|
 | **Clients** | Liste des clients avec recherche, fiche détail par client |
 | **Équipements** | Inventaire par client (serveurs, automates, HMI, réseau…) |
+| **Ordres de travail** | Planification et suivi des interventions : statut (ouvert/assigné/en cours/terminé/annulé), priorité, assignation à un technicien, échéance. Vue globale en tableau par statut + onglet par client. Génération automatique préventive à partir de la date de prochaine maintenance des équipements. |
 | **Procédures** | Procédures de connexion à distance et d'intervention sur site |
 | **Mots de passe** | Coffre-fort de credentials par client/équipement, chiffré AES-256 |
 | **Contacts** | Contacts techniques par client (nom, rôle, téléphone, email) |
@@ -83,6 +84,18 @@ L'inscription ouverte est pratique pour démarrer, mais TechBase stocke des mots
 
 La page d'accueil propose une recherche globale sur l'ensemble des clients, équipements et contacts.
 
+## Génération automatique des ordres de travail
+
+Une Netlify Function planifiée (`netlify/functions/maintenance-scheduler.js`, exécutée quotidiennement) crée automatiquement un ordre de travail préventif pour tout équipement dont la date de prochaine maintenance (`next_maintenance`) tombe dans les 7 prochains jours — sans doublon (contrainte unique en base tant qu'un ordre auto-généré est actif pour cet équipement).
+
+## Fiabilité de la plateforme
+
+- **Tests automatisés** : suite de tests backend (`node --test backend/test`) couvrant l'émission de tokens JWT, le middleware de validation, et le flux d'inscription/connexion (premier compte = admin, doublons, mots de passe invalides…).
+- **CI** (`.github/workflows/ci.yml`) : à chaque push/PR — tests backend, build frontend, et vérification que les Netlify Functions se bundlent correctement (la classe de bug la plus coûteuse rencontrée en déploiement : des dépendances backend absentes du `package.json` racine que Netlify seul peut voir).
+- **Validation des entrées** : middleware de validation partagé (`backend/src/middleware/validate.js`) appliqué aux routes d'authentification et aux ordres de travail.
+- **Limitation de débit** : limite générale sur toutes les routes `/api` (600 req/15 min), plus une limite stricte sur login/register (20 req/15 min).
+- **Gestion d'erreurs centralisée** : les erreurs serveur ne renvoient jamais de détails internes (requêtes SQL, stack traces) en production.
+
 ## Rôles
 
 - **Admin** — accès complet, gestion des utilisateurs, suppression de clients
@@ -94,14 +107,23 @@ La page d'accueil propose une recherche globale sur l'ensemble des clients, équ
 techbase/
 ├── docker-compose.yml
 ├── .env.example
+├── package.json              # Deps miroir pour le bundler des Netlify Functions
+├── netlify.toml
+├── netlify/
+│   ├── functions/            # api.js (backend Express), maintenance-scheduler.js (cron quotidien)
+│   └── database/migrations/  # Schéma appliqué automatiquement par Netlify DB
 ├── backend/
 │   ├── Dockerfile
-│   ├── db/init.sql          # Schéma PostgreSQL (auto-exécuté au premier démarrage)
+│   ├── db/init.sql          # Schéma PostgreSQL (auto-exécuté au premier démarrage, Docker)
+│   ├── test/                 # node --test — token, validation, inscription/connexion
 │   └── src/
-│       ├── index.js
-│       ├── middleware/auth.js
-│       └── routes/          # clients, equipment, procedures, passwords, contacts,
-│                            # epi, logbook, documents, users, search
+│       ├── app.js            # Setup Express (routes, middlewares) — réutilisé par index.js et les Functions
+│       ├── index.js           # Point d'entrée standalone (Docker)
+│       ├── db.js              # Pool Postgres (Netlify DB ou DB_* selon l'environnement)
+│       ├── middleware/       # auth, validate
+│       ├── lib/               # token, respond (réponses d'erreur centralisées)
+│       └── routes/          # auth, users, clients, equipment, work-orders, procedures,
+│                            # passwords, contacts, epi, logbook, documents, search
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
@@ -109,7 +131,8 @@ techbase/
         ├── App.jsx
         ├── contexts/AuthContext.jsx
         ├── components/      # Layout, Sidebar, ProtectedRoute, GlobalSearch
-        └── pages/           # Login, Home, Clients, ClientDetail, Procedures, Users
+        └── pages/           # Login, AuthCallback, Home, Clients, ClientDetail,
+                             # WorkOrders, Procedures, Users
 ```
 
 ## Variables d'environnement
