@@ -45,7 +45,7 @@ function NewWorkOrderModal({ clients, users, onClose, onCreated }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">Nouvel ordre de travail</h3>
+          <h3 className="text-lg font-semibold text-gray-800">Nouveau bon de service</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6 space-y-4">
@@ -172,7 +172,7 @@ export default function WorkOrders() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-gray-800">Ordres de travail</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Bons de service</h1>
         <div className="flex items-center gap-3">
           <select
             value={filterAssignee}
@@ -182,7 +182,7 @@ export default function WorkOrders() {
             <option value="">Tous les techniciens</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
-          <button onClick={() => setShowNew(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">+ Nouvel ordre</button>
+          <button onClick={() => setShowNew(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">+ Nouveau bon de service</button>
         </div>
       </div>
 
