@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { createPool } = require('./db');
 const { version } = require('../package.json');
@@ -39,7 +40,11 @@ const pool = createPool();
 app.locals.db = pool;
 
 if (!isNetlify) {
-  const uploadsDir = process.env.UPLOADS_DIR || '/app/uploads';
+  // '/app/uploads' is the Docker container's path (set explicitly via
+  // UPLOADS_DIR in docker-compose.yml); default to a path relative to this
+  // file so requiring the app outside a container (e.g. in CI) never tries
+  // to create a directory it has no permission for.
+  const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
   fs.mkdirSync(uploadsDir, { recursive: true });
   app.use('/uploads', express.static(uploadsDir));
 }

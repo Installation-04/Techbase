@@ -7,7 +7,11 @@ const { authenticate } = require('../middleware/auth');
 const { serverError } = require('../lib/respond');
 
 const isNetlify = !!process.env.NETLIFY;
-const uploadsDir = process.env.UPLOADS_DIR || '/app/uploads';
+// '/app/uploads' is the Docker container's path (set explicitly via
+// UPLOADS_DIR in docker-compose.yml); default to a path relative to this
+// file so requiring this module outside a container never fails on
+// permissions trying to create a directory it can't write to.
+const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../../uploads');
 if (!isNetlify) fs.mkdirSync(uploadsDir, { recursive: true });
 
 function uniqueFilename(originalname) {
