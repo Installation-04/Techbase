@@ -130,6 +130,16 @@ CREATE TABLE IF NOT EXISTS work_orders (
   CONSTRAINT work_orders_priority_check CHECK (priority IN ('low', 'medium', 'high', 'urgent'))
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type VARCHAR(50) NOT NULL,
+  message TEXT NOT NULL,
+  link VARCHAR(500),
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_equipment_client_id ON equipment(client_id);
 CREATE INDEX IF NOT EXISTS idx_procedures_client_id ON procedures(client_id);
 CREATE INDEX IF NOT EXISTS idx_passwords_client_id ON passwords(client_id);
@@ -148,6 +158,9 @@ CREATE INDEX IF NOT EXISTS idx_work_orders_due_date ON work_orders(due_date);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_work_orders_one_active_auto_per_equipment
   ON work_orders(equipment_id)
   WHERE auto_generated = TRUE AND status NOT IN ('done', 'cancelled');
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id) WHERE read = FALSE;
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_clients_name_trgm ON clients USING GIN (name gin_trgm_ops);

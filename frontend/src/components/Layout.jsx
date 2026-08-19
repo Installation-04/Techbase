@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
+import NotificationBell from './NotificationBell';
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -37,6 +38,14 @@ export default function Layout({ children }) {
             </svg>
           </button>
           <span className="text-xl font-bold text-blue-400">TechBase</span>
+          <div className="ml-auto">
+            <NotificationBell dark />
+          </div>
+        </header>
+
+        {/* Desktop top bar */}
+        <header className="hidden md:flex items-center justify-end px-6 py-3 bg-white border-b border-gray-100 shrink-0">
+          <NotificationBell />
         </header>
 
         <main className="flex-1 overflow-auto p-4 md:p-6">
