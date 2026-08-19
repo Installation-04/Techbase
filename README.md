@@ -78,6 +78,7 @@ L'inscription ouverte est pratique pour démarrer, mais TechBase stocke des mots
 | **EPI** | Liste des équipements de protection individuelle requis par site |
 | **Journal** | Historique des interventions par client |
 | **Documents** | Bibliothèque de fichiers (PDF, photos, manuels) par client |
+| **Intégrations** | Synchronisation avec un ERP externe (Acumatica), onglet par client, réservé aux admins — voir « Intégration ERP » ci-dessous |
 | **Utilisateurs** | Gestion des comptes (Admin / Technicien), accès réservé aux admins |
 
 ## Recherche globale
@@ -96,6 +97,23 @@ La page d'accueil affiche des indicateurs en temps réel (`GET /api/dashboard/su
 ## Génération automatique des bons de service
 
 Une Netlify Function planifiée (`netlify/functions/maintenance-scheduler.js`, exécutée quotidiennement) crée automatiquement un bon de service préventif pour tout équipement dont la date de prochaine maintenance (`next_maintenance`) tombe dans les 7 prochains jours — sans doublon (contrainte unique en base tant qu'un bon de service auto-généré est actif pour cet équipement). La même fonction envoie le résumé quotidien par courriel (voir Notifications ci-dessus).
+
+## Intégration ERP
+
+TechBase peut synchroniser ses clients avec un ERP externe. Le premier connecteur implémenté est **Acumatica** (API REST « contract-based », authentification par session).
+
+- **Ce qui est synchronisé** : Clients TechBase ↔ Customers Acumatica (nom, courriel, téléphone, adresse). La synchronisation est **manuelle** — un bouton « Synchroniser avec Acumatica » sur l'onglet « Intégrations » (visible uniquement pour les admins) de chaque fiche client, plutôt qu'un sync automatique qui pourrait créer des conflits sans supervision.
+- **Idempotent** : une table `erp_links` retient le lien entre chaque client TechBase et son `CustomerID` Acumatica, donc resynchroniser met à jour le même enregistrement au lieu d'en créer un nouveau.
+- **Configuration** : définir dans les variables d'environnement (voir `.env.example`) :
+  - `ACUMATICA_BASE_URL` — ex. `https://votre-instance.acumatica.com`
+  - `ACUMATICA_USERNAME` / `ACUMATICA_PASSWORD` — un utilisateur avec accès API
+  - `ACUMATICA_COMPANY` — le nom du tenant/société dans Acumatica
+  - `ACUMATICA_BRANCH` — optionnel
+  - `ACUMATICA_ENDPOINT_NAME` / `ACUMATICA_ENDPOINT_VERSION` — optionnels, défauts `Default` / `24.200.001` (ajuster selon la version de votre instance)
+
+  Tant que ces variables ne sont pas définies, l'onglet « Intégrations » indique simplement que l'intégration n'est pas configurée — rien ne casse.
+- **Tester la connexion** : `POST /api/integrations/acumatica/test` (admin) tente une connexion/déconnexion sans toucher aux données, utile pour valider les identifiants.
+- **Extensibilité** : le code est structuré pour ajouter d'autres ERP facilement — `backend/src/integrations/<provider>.js` pour le client API, monté dans `backend/src/routes/integrations.js`, la table `erp_links` étant déjà générique (`provider`, `entity_type`). Aucun autre connecteur (SAP, NetSuite, Dynamics, etc.) n'est implémenté pour l'instant.
 
 ## Fiabilité de la plateforme
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 // ---- Generic CRUD Modal ----
 function GenericModal({ title, fields, initialData, onClose, onSave }) {
@@ -665,6 +666,78 @@ function DocumentsTab({ clientId }) {
   );
 }
 
+// ---- Integrations Tab (ERP sync) ----
+function IntegrationsTab({ clientId }) {
+  const [configured, setConfigured] = useState(false);
+  const [link, setLink] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState('');
+
+  const refresh = useCallback(async () => {
+    const statusRes = await axios.get('/api/integrations/acumatica/status');
+    setConfigured(statusRes.data.configured);
+    if (!statusRes.data.configured) return;
+    const linksRes = await axios.get('/api/integrations/acumatica/link-status');
+    setLink(linksRes.data.find(l => String(l.client_id) === String(clientId)) || null);
+  }, [clientId]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setError('');
+    try {
+      await axios.post(`/api/integrations/acumatica/clients/${clientId}/push`);
+      await refresh();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erreur de synchronisation');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  if (!configured) {
+    return (
+      <div className="text-center text-gray-400 py-8">
+        <p>L'intégration Acumatica n'est pas configurée pour ce déploiement.</p>
+        <p className="text-xs mt-1">Voir le README pour les variables d'environnement requises.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md">
+      <div className="bg-gray-50 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-medium text-gray-900">Acumatica ERP</p>
+          {link ? (
+            <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Synchronisé</span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-600">Non synchronisé</span>
+          )}
+        </div>
+        {link ? (
+          <p className="text-sm text-gray-500">
+            ID client Acumatica : <span className="font-mono">{link.remote_id}</span>
+            <br />
+            Dernière synchro : {new Date(link.last_synced_at).toLocaleString('fr-FR')}
+          </p>
+        ) : (
+          <p className="text-sm text-gray-500">Ce client n'a pas encore été synchronisé avec Acumatica.</p>
+        )}
+        {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+        >
+          {syncing ? 'Synchronisation...' : link ? 'Resynchroniser' : 'Synchroniser avec Acumatica'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ---- Main ClientDetail Page ----
 const TABS = [
   { id: 'equipment', label: 'Équipements', component: EquipmentTab },
@@ -675,15 +748,18 @@ const TABS = [
   { id: 'epi', label: 'EPI', component: EpiTab },
   { id: 'logbook', label: 'Journal', component: LogbookTab },
   { id: 'documents', label: 'Documents', component: DocumentsTab },
+  { id: 'integrations', label: 'Intégrations', component: IntegrationsTab, adminOnly: true },
 ];
 
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [client, setClient] = useState(null);
   const [activeTab, setActiveTab] = useState('equipment');
   const [editModal, setEditModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const visibleTabs = TABS.filter(t => !t.adminOnly || user?.role === 'admin');
 
   useEffect(() => {
     axios.get(`/api/clients/${id}`).then(res => {
@@ -700,7 +776,7 @@ export default function ClientDetail() {
     );
   }
 
-  const ActiveComponent = TABS.find(t => t.id === activeTab)?.component;
+  const ActiveComponent = visibleTabs.find(t => t.id === activeTab)?.component;
 
   const clientFields = [
     { key: 'name', label: 'Nom *', required: true },
@@ -773,7 +849,7 @@ export default function ClientDetail() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="flex overflow-x-auto border-b border-gray-100">
-          {TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}

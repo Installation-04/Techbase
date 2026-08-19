@@ -63,6 +63,7 @@ const searchRouter = require('./routes/search');
 const workOrdersRouter = require('./routes/workorders');
 const notificationsRouter = require('./routes/notifications');
 const dashboardRouter = require('./routes/dashboard');
+const integrationsRouter = require('./routes/integrations');
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
@@ -78,6 +79,7 @@ app.use('/api', searchRouter);
 app.use('/api', workOrdersRouter);
 app.use('/api', notificationsRouter);
 app.use('/api', dashboardRouter);
+app.use('/api', integrationsRouter);
 
 // Catch-all safety net for errors thrown outside a route's own try/catch
 // (e.g. a misconfigured middleware) — never let those fall through to
