@@ -205,7 +205,7 @@ L'application peut être déployée entièrement sur Netlify :
 
 ### Étapes
 
-1. Installer les dépendances du module `@netlify/database` (déjà dans `backend/package.json`) — Netlify provisionne la base automatiquement au premier déploiement.
+1. Netlify Database (Postgres/Neon) est provisionnée automatiquement au premier déploiement et injecte la variable `NETLIFY_DATABASE_URL`, lue directement par `backend/src/db.js` — aucun module ni configuration manuelle requis.
 2. Le schéma de base de données est appliqué automatiquement via les migrations dans `netlify/database/migrations/`.
 3. Sur Netlify, créer un nouveau site à partir de ce dépôt (la configuration `netlify.toml` gère le build du frontend et le dossier des fonctions).
 4. Définir `JWT_SECRET` dans les variables d'environnement du site Netlify (obligatoire en production — le démarrage échoue si absent).

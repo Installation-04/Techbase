@@ -1,13 +1,13 @@
 const { Pool } = require('pg');
 
 function createPool() {
-  if (process.env.NETLIFY_DATABASE_URL || process.env.NETLIFY) {
-    try {
-      const { getConnectionString } = require('@netlify/database');
-      return new Pool({ connectionString: getConnectionString() });
-    } catch (err) {
-      console.error('Netlify Database unavailable, falling back to manual DB config:', err.message);
-    }
+  // Netlify Database (Neon) injects the connection string directly as
+  // NETLIFY_DATABASE_URL — no SDK call needed (and @netlify/database's
+  // getConnectionString() reads the older NETLIFY_DB_URL name, which
+  // Netlify no longer sets, so it always threw here).
+  const netlifyConnectionString = process.env.NETLIFY_DATABASE_URL || process.env.NETLIFY_DB_URL;
+  if (netlifyConnectionString) {
+    return new Pool({ connectionString: netlifyConnectionString });
   }
   return new Pool({
     host: process.env.DB_HOST || 'localhost',

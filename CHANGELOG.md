@@ -2,6 +2,12 @@
 
 Toutes les versions notables de TechIBase sont documentées ici. Le projet est en **bêta** (`0.0.x`), voir [README.md#version](README.md#version) pour la convention de version.
 
+## [0.0.6] - Correction de la connexion à Netlify Database
+
+- Netlify a renommé son produit de base de données managée ; la variable d'environnement injectée est désormais `NETLIFY_DATABASE_URL` au lieu de `NETLIFY_DB_URL`. Le module `@netlify/database` (encore utilisé côté code) lisait l'ancien nom et échouait silencieusement, faisant retomber l'application sur une connexion Postgres locale inexistante — ce qui provoquait une erreur générique sur toute action touchant la base (ex. création de compte).
+- `backend/src/db.js` lit maintenant `NETLIFY_DATABASE_URL` directement ; la dépendance `@netlify/database`, désormais inutile, a été retirée.
+- Renommage de l'application affichée de « TechBase » à « TechIBase » (PR #12).
+
 ## [0.0.5] - Intégration ERP Acumatica par utilisateur
 
 - L'intégration Acumatica est désormais **par utilisateur** : chaque utilisateur connecte et synchronise son propre compte/tenant Acumatica depuis l'onglet Intégrations d'une fiche client, au lieu de partager un seul jeu d'identifiants au niveau du déploiement.
