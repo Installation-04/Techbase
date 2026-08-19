@@ -108,7 +108,7 @@ router.put('/work-orders/:id', authenticate, validate({
        WHERE id=$8 RETURNING id`,
       [title, description || null, status || 'open', priority || 'medium', equipment_id || null, assigned_to || null, due_date || null, req.params.id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Ordre de travail non trouvé' });
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Bon de service non trouvé' });
     const full = await db.query(`${SELECT_WORK_ORDER} WHERE wo.id = $1`, [req.params.id]);
     res.json(full.rows[0]);
   } catch (err) {
@@ -121,7 +121,7 @@ router.delete('/work-orders/:id', authenticate, async (req, res) => {
   const db = req.app.locals.db;
   try {
     await db.query('DELETE FROM work_orders WHERE id=$1', [req.params.id]);
-    res.json({ message: 'Ordre de travail supprimé' });
+    res.json({ message: 'Bon de service supprimé' });
   } catch (err) {
     serverError(res, err);
   }

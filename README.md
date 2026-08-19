@@ -71,7 +71,7 @@ L'inscription ouverte est pratique pour démarrer, mais TechBase stocke des mots
 |--------|-------------|
 | **Clients** | Liste des clients avec recherche, fiche détail par client |
 | **Équipements** | Inventaire par client (serveurs, automates, HMI, réseau…) |
-| **Ordres de travail** | Planification et suivi des interventions : statut (ouvert/assigné/en cours/terminé/annulé), priorité, assignation à un technicien, échéance. Vue globale en tableau par statut + onglet par client. Génération automatique préventive à partir de la date de prochaine maintenance des équipements. |
+| **Bons de service (BS)** | Planification et suivi des interventions : statut (ouvert/assigné/en cours/terminé/annulé), priorité, assignation à un technicien, échéance. Vue globale en tableau par statut + onglet par client. Génération automatique préventive à partir de la date de prochaine maintenance des équipements. |
 | **Procédures** | Procédures de connexion à distance et d'intervention sur site |
 | **Mots de passe** | Coffre-fort de credentials par client/équipement, chiffré AES-256 |
 | **Contacts** | Contacts techniques par client (nom, rôle, téléphone, email) |
@@ -84,15 +84,15 @@ L'inscription ouverte est pratique pour démarrer, mais TechBase stocke des mots
 
 La page d'accueil propose une recherche globale sur l'ensemble des clients, équipements et contacts.
 
-## Génération automatique des ordres de travail
+## Génération automatique des bons de service
 
-Une Netlify Function planifiée (`netlify/functions/maintenance-scheduler.js`, exécutée quotidiennement) crée automatiquement un ordre de travail préventif pour tout équipement dont la date de prochaine maintenance (`next_maintenance`) tombe dans les 7 prochains jours — sans doublon (contrainte unique en base tant qu'un ordre auto-généré est actif pour cet équipement).
+Une Netlify Function planifiée (`netlify/functions/maintenance-scheduler.js`, exécutée quotidiennement) crée automatiquement un bon de service préventif pour tout équipement dont la date de prochaine maintenance (`next_maintenance`) tombe dans les 7 prochains jours — sans doublon (contrainte unique en base tant qu'un bon de service auto-généré est actif pour cet équipement).
 
 ## Fiabilité de la plateforme
 
 - **Tests automatisés** : suite de tests backend (`node --test backend/test`) couvrant l'émission de tokens JWT, le middleware de validation, et le flux d'inscription/connexion (premier compte = admin, doublons, mots de passe invalides…).
 - **CI** (`.github/workflows/ci.yml`) : à chaque push/PR — tests backend, build frontend, et vérification que les Netlify Functions se bundlent correctement (la classe de bug la plus coûteuse rencontrée en déploiement : des dépendances backend absentes du `package.json` racine que Netlify seul peut voir).
-- **Validation des entrées** : middleware de validation partagé (`backend/src/middleware/validate.js`) appliqué aux routes d'authentification et aux ordres de travail.
+- **Validation des entrées** : middleware de validation partagé (`backend/src/middleware/validate.js`) appliqué aux routes d'authentification et aux bons de service.
 - **Limitation de débit** : limite générale sur toutes les routes `/api` (600 req/15 min), plus une limite stricte sur login/register (20 req/15 min).
 - **Gestion d'erreurs centralisée** : les erreurs serveur ne renvoient jamais de détails internes (requêtes SQL, stack traces) en production.
 
