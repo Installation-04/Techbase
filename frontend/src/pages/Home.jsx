@@ -49,7 +49,7 @@ export default function Home() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Bienvenue sur TechBase</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Bienvenue sur TechIBase</h1>
         <p className="text-gray-500 mt-1">Bonjour, {user?.name} 👋</p>
       </div>
 

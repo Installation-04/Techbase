@@ -1,6 +1,6 @@
 # Journal des versions (Changelog)
 
-Toutes les versions notables de TechBase sont documentées ici. Le projet est en **bêta** (`0.0.x`), voir [README.md#version](README.md#version) pour la convention de version.
+Toutes les versions notables de TechIBase sont documentées ici. Le projet est en **bêta** (`0.0.x`), voir [README.md#version](README.md#version) pour la convention de version.
 
 ## [0.0.5] - Intégration ERP Acumatica par utilisateur
 
@@ -28,7 +28,7 @@ Toutes les versions notables de TechBase sont documentées ici. Le projet est en
 
 ## [0.0.1] - Déploiement Netlify et authentification
 
-- TechBase déployé entièrement sur Netlify (Functions, Netlify DB, Netlify Blobs).
+- TechIBase déployé entièrement sur Netlify (Functions, Netlify DB, Netlify Blobs).
 - Correction de la connexion cassée en production (`trust proxy` avec le limiteur de débit).
 - Auto-inscription (le premier compte créé devient administrateur) et authentification SSO Google / Microsoft 365, en plus des comptes locaux.
 - Numérotation de version bêta (`0.0.x`) ajoutée à l'application et à `GET /api/health`.

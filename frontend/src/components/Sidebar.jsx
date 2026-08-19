@@ -30,7 +30,7 @@ export default function Sidebar({ onClose }) {
     <aside className="w-64 bg-gray-900 text-white flex flex-col h-full">
       <div className="p-6 border-b border-gray-700 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">TechBase</h1>
+          <h1 className="text-2xl font-bold text-blue-400">TechIBase</h1>
           <p className="text-gray-400 text-sm mt-1 truncate">{user?.name}</p>
         </div>
         {/* Close button on mobile only */}

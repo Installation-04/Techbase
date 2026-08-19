@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-echo "=== Installation de TechBase ==="
+echo "=== Installation de TechIBase ==="
 
 # 1. Vérifier que Docker et Docker Compose sont disponibles
 if ! command -v docker &> /dev/null; then
@@ -54,7 +54,7 @@ for i in $(seq 1 30); do
 done
 
 echo ""
-echo "=== TechBase est prêt ! ==="
+echo "=== TechIBase est prêt ! ==="
 echo "Application accessible sur : http://localhost"
 echo ""
 echo "Compte administrateur par défaut :"
