@@ -2,6 +2,11 @@
 
 Toutes les versions notables de TechIBase sont documentées ici. Le projet est en **bêta** (`0.0.x`), voir [README.md#version](README.md#version) pour la convention de version.
 
+## [0.0.7] - Schéma de base de données auto-réparateur
+
+- La migration automatique du schéma (`netlify/database/migrations/`) reposait entièrement sur l'ancienne extension « Netlify DB », désormais remplacée par la fonctionnalité intégrée « Netlify Database ». Ce mécanisme d'application automatique ne s'est jamais déclenché sur le nouveau système, laissant la base de données sans les tables de l'application (seule une table `todo` de démonstration existait) — d'où l'erreur 502 sur toute requête touchant la base (ex. création de compte).
+- Le schéma (`backend/src/db/schema.js`, `CREATE TABLE IF NOT EXISTS` partout) est maintenant appliqué automatiquement à chaque démarrage à froid de la fonction, quel que soit le mécanisme de provisionnement de la base — auto-réparateur, sans dépendance à une extension Netlify particulière.
+
 ## [0.0.6] - Correction de la connexion à Netlify Database
 
 - Netlify a renommé son produit de base de données managée ; la variable d'environnement injectée est désormais `NETLIFY_DATABASE_URL` au lieu de `NETLIFY_DB_URL`. Le module `@netlify/database` (encore utilisé côté code) lisait l'ancien nom et échouait silencieusement, faisant retomber l'application sur une connexion Postgres locale inexistante — ce qui provoquait une erreur générique sur toute action touchant la base (ex. création de compte).
