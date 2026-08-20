@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { createPool } = require('./db');
+const schema = require('./db/schema');
 const { version } = require('../package.json');
 
 const isNetlify = !!process.env.NETLIFY;
@@ -101,13 +102,19 @@ async function init() {
       while (retries > 0) {
         try {
           await pool.query('SELECT 1');
-          return;
+          break;
         } catch (err) {
           retries--;
           if (retries === 0) throw err;
           await new Promise(r => setTimeout(r, 2000));
         }
       }
+      // Self-healing schema: applies on every cold start regardless of how
+      // the database was provisioned (Docker's initdb hook, Netlify DB's
+      // now-defunct extension-based migration runner, a bare Postgres
+      // instance, ...). Idempotent (IF NOT EXISTS throughout), cheap once
+      // the schema already exists.
+      await pool.query(schema);
     })().catch(err => {
       readyPromise = null;
       throw err;
