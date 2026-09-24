@@ -15,7 +15,7 @@
     "serverless-http": "^3.2.0"
   },
   "devDependencies": {
-    "supertest": "^7.0.0"
+    "supertest": "^7.3.0"
   },
   "scripts": {
     "test": "node --test backend/test"
