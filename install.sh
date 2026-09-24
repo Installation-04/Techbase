@@ -46,7 +46,7 @@ docker compose up --build -d
 
 # 4. Attendre que le backend soit prêt
 echo "Attente du démarrage du backend..."
-for i in $(seq 1 30); do
+for _ in $(seq 1 30); do
   if docker compose exec -T backend node -e "process.exit(0)" &> /dev/null; then
     break
   fi
