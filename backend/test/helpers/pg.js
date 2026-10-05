@@ -31,6 +31,7 @@ async function createTestDb() {
   return {
     pool,
     name,
+    url: url.toString(),
     async drop() {
       await pool.end();
       const cleanup = new Pool({ connectionString: baseUrl, max: 1 });

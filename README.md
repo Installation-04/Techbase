@@ -33,7 +33,7 @@ Puis, sur GitHub → **Releases** → **Draft a new release**, choisir le tag `v
 - **Frontend:** React + Vite, Tailwind CSS, React Router
 - **Backend:** Node.js + Express, API REST, authentification JWT
 - **Base de données:** PostgreSQL
-- **Déploiement:** Docker Compose (3 conteneurs : frontend, backend, db)
+- **Déploiement:** Docker Compose (4 conteneurs : base de données, API, planificateur, application web — tout tient dans Docker, HTTPS en option) ou Netlify
 
 ## Démarrage rapide
 
@@ -114,6 +114,8 @@ La page d'accueil affiche des indicateurs en temps réel (`GET /api/dashboard/su
 
 Une Netlify Function planifiée (`netlify/functions/maintenance-scheduler.js`, exécutée quotidiennement) crée automatiquement un bon de service préventif pour tout équipement dont la date de prochaine maintenance (`next_maintenance`) tombe dans les 7 prochains jours — sans doublon (contrainte unique en base tant qu'un bon de service auto-généré est actif pour cet équipement). La même fonction envoie le résumé quotidien par courriel (voir Notifications ci-dessus).
 
+Sous Docker, le même code est exécuté par le conteneur `scheduler` (`backend/src/scheduler.js`, heure réglable avec `SCHEDULER_TIME`) — voir « Docker (auto-hébergé) ». Un bon de service préventif n'est créé qu'une fois par date de maintenance : le terminer ou l'annuler ne le recrée pas ; il faut changer la « prochaine maintenance » de l'équipement pour en obtenir un nouveau.
+
 ## Intégration ERP
 
 TechIBase peut synchroniser ses clients avec un ERP externe. Le premier connecteur implémenté est **Acumatica** (API REST « contract-based », authentification par session).
@@ -142,7 +144,10 @@ TechIBase peut synchroniser ses clients avec un ERP externe. Le premier connecte
 
 ```
 techbase/
-├── docker-compose.yml
+├── docker-compose.yml        # db + backend + scheduler + frontend
+├── docker-compose.https.yml  # HTTPS optionnel (Caddy)
+├── Caddyfile
+├── scripts/                  # dev-local.sh (sans Docker), docker-smoke.sh (test de bout en bout)
 ├── .env.example
 ├── package.json              # Deps miroir pour le bundler des Netlify Functions
 ├── netlify.toml
@@ -150,15 +155,16 @@ techbase/
 │   ├── functions/            # api.js (backend Express), maintenance-scheduler.js (cron quotidien)
 │   └── database/migrations/  # Schéma appliqué automatiquement par Netlify DB
 ├── backend/
-│   ├── Dockerfile
+│   ├── Dockerfile            # utilisé par `backend` et `scheduler`
 │   ├── db/init.sql          # Schéma PostgreSQL (auto-exécuté au premier démarrage, Docker)
-│   ├── test/                 # node --test — token, validation, inscription/connexion
+│   ├── test/                 # node --test — token, validation, inscription/connexion, documents, tâches quotidiennes
 │   └── src/
 │       ├── app.js            # Setup Express (routes, middlewares) — réutilisé par index.js et les Functions
 │       ├── index.js           # Point d'entrée standalone (Docker)
+│       ├── scheduler.js       # Planificateur quotidien (conteneur `scheduler`)
 │       ├── db.js              # Pool Postgres (Netlify DB ou DB_* selon l'environnement)
 │       ├── middleware/       # auth, validate
-│       ├── lib/               # token, respond, email, notify
+│       ├── lib/               # token, respond, email, notify, tâches quotidiennes (maintenance, digest)
 │       └── routes/          # auth, users, clients, equipment, work-orders, dashboard,
 │                            # notifications, procedures, passwords, contacts, epi,
 │                            # logbook, documents, search
@@ -175,24 +181,25 @@ techbase/
 
 ## Variables d'environnement
 
-Copier `.env.example` en `.env` et adapter les valeurs :
+Copier `.env.example` en `.env` et adapter les valeurs (`./install.sh` le fait avec des secrets aléatoires). Les variables propres à Docker (`HTTP_PORT`, `TZ`, `SCHEDULER_TIME`, `RUN_ON_START`, `DOMAIN`…) sont détaillées dans « Docker (auto-hébergé) ».
 
 | Variable | Description |
 |----------|-------------|
-| `DB_HOST` | Hôte PostgreSQL (default: `db`) |
+| `DB_HOST` | Hôte PostgreSQL (fixé à `db` par Docker Compose) |
 | `DB_PORT` | Port PostgreSQL (default: `5432`) |
 | `DB_NAME` | Nom de la base de données |
 | `DB_USER` | Utilisateur PostgreSQL |
 | `DB_PASSWORD` | Mot de passe PostgreSQL |
-| `JWT_SECRET` | Clé secrète pour les tokens JWT |
+| `JWT_SECRET` | Clé secrète pour les tokens JWT (obligatoire en production) |
 
 ## Ports
 
 | Service | Port |
 |---------|------|
-| Frontend (nginx) | `80` |
-| Backend (Express) | `3001` |
-| PostgreSQL | `5432` (interne) |
+| Application web (nginx) | `80` (`HTTP_PORT`) — seul port publié par Docker Compose |
+| Caddy (HTTPS, optionnel) | `80` et `443` |
+| API (Express) | `3001`, interne uniquement : accessible via l'application web (`/api`), non publiée |
+| PostgreSQL | `5432`, interne uniquement |
 
 ## Déploiement complet sur Netlify
 
@@ -211,7 +218,88 @@ L'application peut être déployée entièrement sur Netlify :
 4. Définir `JWT_SECRET` dans les variables d'environnement du site Netlify (obligatoire en production — le démarrage échoue si absent).
 5. Déployer. Le frontend appelle l'API relativement (`/api/...`), qui est automatiquement routée vers la fonction serverless sur le même domaine.
 
-### Développement local sans Docker
+### Déploiement alternatif : frontend Netlify + backend hébergé séparément
+
+Si vous préférez héberger le backend ailleurs (Render, Railway, Fly.io…) plutôt que via les Netlify Functions :
+
+1. Déployer `backend/` + PostgreSQL sur cet hébergeur avec les variables de `.env.example`, en définissant `CORS_ORIGIN` avec l'URL Netlify du frontend.
+2. Dans les paramètres du site Netlify, définir `VITE_API_URL` avec l'URL publique du backend (sans `/api` à la fin).
+3. Retirer ou adapter `[functions]` dans `netlify.toml` si les Netlify Functions ne sont pas utilisées.
+
+## Docker (auto-hébergé)
+
+Toute la plateforme tourne dans des conteneurs ; Netlify n'est pas nécessaire.
+
+| Conteneur | Rôle |
+|-----------|------|
+| `db` | PostgreSQL 15 (volume `db_data`) |
+| `backend` | L'API Express. Exécutée par un utilisateur non privilégié ; les documents sont stockés dans le volume `uploads`. Non exposée à l'hôte : on n'y accède que via `frontend` |
+| `scheduler` | Les tâches quotidiennes : génération des bons de service préventifs et résumé par courriel aux admins (l'équivalent de la fonction planifiée Netlify) |
+| `frontend` | L'application web servie par nginx (gzip, cache long des fichiers fingerprintés, en-têtes de sécurité) ; seul point d'entrée, publié sur `HTTP_PORT` (80 par défaut) |
+
+**Installation** : `./install.sh` (voir « Démarrage rapide »). Le script n'annonce « prêt » que lorsque tous les services sont réellement sains, et affiche l'état et les journaux sinon.
+
+**Configuration** : tout passe par le fichier `.env` (modèle : `.env.example`). Les variables utiles en Docker :
+
+| Variable | Rôle |
+|----------|------|
+| `JWT_SECRET` | **Obligatoire.** Le démarrage échoue si elle est absente. ⚠️ Ne la changez pas sur une installation existante : elle sert aussi à chiffrer le coffre-fort de mots de passe |
+| `DB_PASSWORD`, `DB_NAME`, `DB_USER` | Accès à la base |
+| `HTTP_PORT` | Port publié par l'application (80) |
+| `TZ` | Fuseau horaire des conteneurs (ex. `America/Toronto`), qui détermine l'heure du planificateur |
+| `SCHEDULER_TIME` | Heure du passage quotidien du planificateur, `HH:MM` (défaut `06:00`, dans le fuseau `TZ`) |
+| `RUN_ON_START` | `true` pour aussi exécuter les tâches au démarrage du conteneur |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Courriels (assignations, résumé quotidien) |
+| `GOOGLE_*`, `MICROSOFT_*`, `PUBLIC_URL`, `FRONTEND_URL` | SSO |
+| `ACUMATICA_*` | Compte Acumatica partagé optionnel |
+
+Après modification du `.env` : `docker compose up -d` (les conteneurs concernés sont recréés).
+
+**Planificateur** : `docker compose logs scheduler` affiche la prochaine exécution. Pour déclencher les tâches immédiatement : `docker compose exec scheduler node src/scheduler.js --once`. Elles sont idempotentes : relancer ne crée aucun doublon.
+
+### HTTPS
+
+Pour exposer l'application sur Internet, utilisez le fichier `docker-compose.https.yml` : un conteneur Caddy obtient et renouvelle automatiquement le certificat (Let's Encrypt), redirige HTTP vers HTTPS et ajoute HSTS.
+
+1. Faites pointer le DNS de votre domaine vers le serveur et ouvrez les ports 80 et 443.
+2. Dans `.env` : `DOMAIN=app.exemple.com` et `PUBLIC_URL=https://app.exemple.com` (adresse de retour du SSO).
+3. Démarrez avec les deux fichiers : `docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build --wait`
+
+Caddy devient alors l'unique point d'entrée public. Pour l'essayer en local, mettez `DOMAIN=localhost` (certificat émis par l'autorité locale de Caddy ; le navigateur demandera de l'accepter).
+
+### Sauvegarde et restauration
+
+Deux choses à sauvegarder : la base de données et le dossier des documents.
+
+```bash
+# Sauvegarde
+docker compose exec -T db sh -c 'pg_dump --clean --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > techibase-db-$(date +%F).sql.gz
+docker compose cp backend:/app/uploads ./techibase-uploads-$(date +%F)
+
+# Restauration (le contenu actuel de la base est remplacé)
+docker compose stop backend scheduler
+gunzip -c techibase-db-2026-01-01.sql.gz | docker compose exec -T db sh -c 'psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$POSTGRES_DB"'
+docker compose cp ./techibase-uploads-2026-01-01/. backend:/app/uploads
+docker compose start backend scheduler && docker compose restart backend
+```
+
+Pensez à copier ces fichiers hors du serveur. Les sauvegardes de la base et des documents doivent provenir du même moment.
+
+### Mise à jour
+
+```bash
+git pull
+docker compose up -d --build --wait
+scripts/docker-smoke.sh   # facultatif : vérifie l'ensemble de bout en bout
+```
+
+Les volumes (`db_data`, `uploads`) sont conservés, ainsi que les comptes et documents existants. Points à connaître si vous venez d'une version antérieure du `docker-compose.yml` :
+- `JWT_SECRET` doit maintenant être défini dans `.env` (auparavant une valeur par défaut non sécurisée était utilisée silencieusement). Gardez votre valeur actuelle, sinon les mots de passe du coffre-fort deviennent illisibles.
+- Le port `3001` de l'API n'est plus publié sur l'hôte ; tout passe par l'application web.
+- L'API tourne maintenant sans privilèges ; les droits du volume `uploads` sont corrigés automatiquement au démarrage.
+- Le conteneur `scheduler` est nouveau : les tâches quotidiennes tournent désormais aussi sous Docker.
+
+## Développement local sans Docker
 
 `scripts/dev-local.sh` démarre tout en local, sans Docker ni Netlify (donc sans consommer de crédits de build ou de fonctions) : votre PostgreSQL, l'API Express et le serveur de développement Vite.
 
@@ -220,15 +308,3 @@ scripts/dev-local.sh   # API sur :3001, application sur http://localhost:5173
 ```
 
 Il suppose un PostgreSQL local et un rôle capable de créer des bases (par défaut `techbase` / `techbase` sur `127.0.0.1:5432` ; surchargeable via `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`). La base est créée au premier lancement et le schéma est appliqué par l'API. Le serveur Vite redirige `/api` vers `http://localhost:3001` (modifiable avec `VITE_PROXY_TARGET`).
-
-### Développement local (Docker Compose)
-
-Le flux Docker Compose (`docker-compose.yml`) reste disponible pour le développement local : backend Express autonome + PostgreSQL + stockage des documents sur disque (`/app/uploads`). Le code détecte automatiquement l'environnement (variable `NETLIFY`) et bascule entre les deux modes de stockage sans changement de code applicatif.
-
-### Déploiement alternatif : frontend Netlify + backend hébergé séparément
-
-Si vous préférez héberger le backend ailleurs (Render, Railway, Fly.io…) plutôt que via les Netlify Functions :
-
-1. Déployer `backend/` + PostgreSQL sur cet hébergeur avec les variables de `.env.example`, en définissant `CORS_ORIGIN` avec l'URL Netlify du frontend.
-2. Dans les paramètres du site Netlify, définir `VITE_API_URL` avec l'URL publique du backend (sans `/api` à la fin).
-3. Retirer ou adapter `[functions]` dans `netlify.toml` si les Netlify Functions ne sont pas utilisées.
