@@ -8,6 +8,24 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    # A real Postgres for the database tests (backend/test/helpers/pg.js creates
+    # a throwaway database per test file from this server).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: techbase
+          POSTGRES_PASSWORD: techbase
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U techbase"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://techbase:techbase@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

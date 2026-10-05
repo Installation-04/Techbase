@@ -127,7 +127,7 @@ TechIBase peut synchroniser ses clients avec un ERP externe. Le premier connecte
 
 ## Fiabilité de la plateforme
 
-- **Tests automatisés** : suite de tests backend (`node --test backend/test`) couvrant l'émission de tokens JWT, le middleware de validation, et le flux d'inscription/connexion (premier compte = admin, doublons, mots de passe invalides…).
+- **Tests automatisés** : suite de tests backend (`npm test`) couvrant l'émission de tokens JWT, le middleware de validation, le flux d'inscription/connexion (premier compte = admin, doublons, mots de passe invalides…), la sécurité des documents téléversés, et — contre un vrai PostgreSQL — la génération automatique des bons de service et la gestion des EPI. Les tests qui ont besoin d'une base de données lisent `TEST_DATABASE_URL` (ex. `postgresql://techbase:techbase@127.0.0.1:5432/postgres`, le rôle doit pouvoir créer des bases) ; sans cette variable ils sont simplement ignorés. La CI la fournit via un conteneur PostgreSQL.
 - **CI** (`.github/workflows/ci.yml`) : à chaque push/PR — tests backend, build frontend, et vérification que les Netlify Functions se bundlent correctement (la classe de bug la plus coûteuse rencontrée en déploiement : des dépendances backend absentes du `package.json` racine que Netlify seul peut voir).
 - **Validation des entrées** : middleware de validation partagé (`backend/src/middleware/validate.js`) appliqué aux routes d'authentification et aux bons de service.
 - **Limitation de débit** : limite générale sur toutes les routes `/api` (600 req/15 min), plus une limite stricte sur login/register (20 req/15 min).
@@ -210,6 +210,16 @@ L'application peut être déployée entièrement sur Netlify :
 3. Sur Netlify, créer un nouveau site à partir de ce dépôt (la configuration `netlify.toml` gère le build du frontend et le dossier des fonctions).
 4. Définir `JWT_SECRET` dans les variables d'environnement du site Netlify (obligatoire en production — le démarrage échoue si absent).
 5. Déployer. Le frontend appelle l'API relativement (`/api/...`), qui est automatiquement routée vers la fonction serverless sur le même domaine.
+
+### Développement local sans Docker
+
+`scripts/dev-local.sh` démarre tout en local, sans Docker ni Netlify (donc sans consommer de crédits de build ou de fonctions) : votre PostgreSQL, l'API Express et le serveur de développement Vite.
+
+```bash
+scripts/dev-local.sh   # API sur :3001, application sur http://localhost:5173
+```
+
+Il suppose un PostgreSQL local et un rôle capable de créer des bases (par défaut `techbase` / `techbase` sur `127.0.0.1:5432` ; surchargeable via `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`). La base est créée au premier lancement et le schéma est appliqué par l'API. Le serveur Vite redirige `/api` vers `http://localhost:3001` (modifiable avec `VITE_PROXY_TARGET`).
 
 ### Développement local (Docker Compose)
 

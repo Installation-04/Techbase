@@ -12,7 +12,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://backend:3001',
+        // Where `npm run dev` forwards API calls. Defaults to a locally running
+        // backend (see scripts/dev-local.sh); set VITE_PROXY_TARGET to point
+        // elsewhere, e.g. http://backend:3001 inside a Docker network.
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3001',
         changeOrigin: true,
       },
     },
