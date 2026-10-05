@@ -9,6 +9,12 @@ const { validate } = require('../middleware/validate');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// bcrypt hash of a random throwaway string (cost 10, same as real hashes).
+// Login compares against it when the account doesn't exist or has no local
+// password, so those cases take as long as a wrong password and can't be
+// told apart by response time.
+const DUMMY_HASH = '$2b$10$F6fZeYPi/n2cxyF9cKWFr.1FcpToYrYAmYgUdGgpTLndCTwbi7rXq';
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -52,13 +58,13 @@ router.post('/login', loginLimiter, validate({
   const { email, password } = req.body;
   try {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0) return res.status(401).json({ error: 'Identifiants invalides' });
     const user = result.rows[0];
-    if (!user.password_hash) {
-      return res.status(401).json({ error: `Ce compte utilise la connexion ${user.provider === 'google' ? 'Google' : 'Microsoft'}, pas de mot de passe` });
+    // Same work and same message whether the email is unknown, the account is
+    // SSO-only, or the password is wrong — nothing here confirms an account exists.
+    const valid = await bcrypt.compare(password, user?.password_hash || DUMMY_HASH);
+    if (!user || !user.password_hash || !valid) {
+      return res.status(401).json({ error: 'Identifiants invalides' });
     }
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Identifiants invalides' });
     res.json({ token: issueToken(user), user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (err) {
     serverError(res, err);

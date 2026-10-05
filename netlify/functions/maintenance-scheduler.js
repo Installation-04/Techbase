@@ -4,7 +4,7 @@
 // as a second line of defense against duplicates on overlapping runs). Also
 // emails admins a digest of overdue maintenance and low EPI stock.
 const { createPool } = require('../../backend/src/db');
-const { sendEmail } = require('../../backend/src/lib/email');
+const { sendEmail, escapeHtml } = require('../../backend/src/lib/email');
 
 exports.handler = async () => {
   const pool = createPool();
@@ -77,10 +77,10 @@ async function sendAdminDigest(pool) {
   if (overdueEquipment.rows.length === 0 && lowStockEpi.rows.length === 0) return;
 
   const equipmentList = overdueEquipment.rows
-    .map(e => `<li>${e.name} (${e.client_name}) — échue le ${e.next_maintenance}</li>`)
+    .map(e => `<li>${escapeHtml(e.name)} (${escapeHtml(e.client_name)}) — échue le ${e.next_maintenance}</li>`)
     .join('');
   const epiList = lowStockEpi.rows
-    .map(e => `<li>${e.name} (${e.client_name}) — quantité restante : ${e.quantity}</li>`)
+    .map(e => `<li>${escapeHtml(e.name)} (${escapeHtml(e.client_name)}) — quantité restante : ${e.quantity}</li>`)
     .join('');
 
   const html = `

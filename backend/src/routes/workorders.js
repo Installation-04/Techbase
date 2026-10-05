@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { serverError } = require('../lib/respond');
 const { notifyUser } = require('../lib/notify');
+const { escapeHtml } = require('../lib/email');
 
 const STATUSES = ['open', 'assigned', 'in_progress', 'done', 'cancelled'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -91,7 +92,7 @@ router.post('/clients/:clientId/work-orders', authenticate, validate({
         message: `Vous avez été assigné au bon de service « ${workOrder.title} » (${workOrder.client_name})`,
         link: '/work-orders',
         emailSubject: `Nouveau bon de service assigné : ${workOrder.title}`,
-        emailHtml: `<p>Vous avez été assigné au bon de service <strong>${workOrder.title}</strong> pour le client <strong>${workOrder.client_name}</strong>.</p>`,
+        emailHtml: `<p>Vous avez été assigné au bon de service <strong>${escapeHtml(workOrder.title)}</strong> pour le client <strong>${escapeHtml(workOrder.client_name)}</strong>.</p>`,
       });
     }
   } catch (err) {
@@ -137,7 +138,7 @@ router.put('/work-orders/:id', authenticate, validate({
         message: `Vous avez été assigné au bon de service « ${workOrder.title} » (${workOrder.client_name})`,
         link: '/work-orders',
         emailSubject: `Nouveau bon de service assigné : ${workOrder.title}`,
-        emailHtml: `<p>Vous avez été assigné au bon de service <strong>${workOrder.title}</strong> pour le client <strong>${workOrder.client_name}</strong>.</p>`,
+        emailHtml: `<p>Vous avez été assigné au bon de service <strong>${escapeHtml(workOrder.title)}</strong> pour le client <strong>${escapeHtml(workOrder.client_name)}</strong>.</p>`,
       });
     }
   } catch (err) {

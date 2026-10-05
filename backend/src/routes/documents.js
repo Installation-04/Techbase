@@ -3,8 +3,16 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const { serverError } = require('../lib/respond');
+const {
+  SNIFF_BYTES,
+  FALLBACK_MIMETYPE,
+  resolveStoredMimetype,
+  isInlineSafe,
+  contentDisposition,
+} = require('../lib/fileTypes');
 
 const isNetlify = !!process.env.NETLIFY;
 // '/app/uploads' is the Docker container's path (set explicitly via
@@ -14,9 +22,23 @@ const isNetlify = !!process.env.NETLIFY;
 const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../../uploads');
 if (!isNetlify) fs.mkdirSync(uploadsDir, { recursive: true });
 
+// Random, unguessable storage name (the original name lives in the DB). The
+// extension is kept only if it's plain alphanumerics, so it can't smuggle path
+// characters into the stored filename.
 function uniqueFilename(originalname) {
-  const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-  return unique + path.extname(originalname);
+  const ext = path.extname(originalname).toLowerCase();
+  return crypto.randomUUID() + (/^\.[a-z0-9]{1,10}$/.test(ext) ? ext : '');
+}
+
+async function readHead(filePath) {
+  const handle = await fs.promises.open(filePath, 'r');
+  try {
+    const buf = Buffer.alloc(SNIFF_BYTES);
+    const { bytesRead } = await handle.read(buf, 0, SNIFF_BYTES, 0);
+    return buf.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
 }
 
 const upload = multer(
@@ -54,14 +76,16 @@ router.post('/clients/:clientId/documents', authenticate, upload.single('file'),
   if (!req.file) return res.status(400).json({ error: 'Fichier requis' });
   try {
     let filename = req.file.filename;
+    const head = isNetlify ? req.file.buffer.subarray(0, SNIFF_BYTES) : await readHead(req.file.path);
+    const mimetype = resolveStoredMimetype(req.file.mimetype, head);
     if (isNetlify) {
       filename = uniqueFilename(req.file.originalname);
       const store = getBlobStore();
-      await store.set(filename, req.file.buffer, { metadata: { mimetype: req.file.mimetype } });
+      await store.set(filename, req.file.buffer, { metadata: { mimetype } });
     }
     const result = await db.query(
       'INSERT INTO documents (client_id, filename, original_name, mimetype, size, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [req.params.clientId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user.id]
+      [req.params.clientId, filename, req.file.originalname, mimetype, req.file.size, req.user.id]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -75,16 +99,33 @@ router.get('/clients/:clientId/documents/:id/download', authenticate, async (req
     const result = await db.query('SELECT * FROM documents WHERE id=$1 AND client_id=$2', [req.params.id, req.params.clientId]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document non trouvé' });
     const doc = result.rows[0];
-    res.setHeader('Content-Type', doc.mimetype || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.original_name)}"`);
+
+    let body = null;
+    let head;
+    const filePath = path.join(uploadsDir, doc.filename);
     if (isNetlify) {
-      const store = getBlobStore();
-      const data = await store.get(doc.filename, { type: 'arrayBuffer' });
+      const data = await getBlobStore().get(doc.filename, { type: 'arrayBuffer' });
       if (!data) return res.status(404).json({ error: 'Fichier non trouvé' });
-      res.send(Buffer.from(data));
+      body = Buffer.from(data);
+      head = body.subarray(0, SNIFF_BYTES);
     } else {
-      res.sendFile(path.join(uploadsDir, doc.filename));
+      try {
+        head = await readHead(filePath);
+      } catch (err) {
+        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Fichier non trouvé' });
+        throw err;
+      }
     }
+
+    // Re-check the type on every download (not just at upload) so rows stored
+    // before this check existed can't be served as active content either.
+    const mimetype = resolveStoredMimetype(doc.mimetype, head);
+    const inline = isInlineSafe(mimetype);
+    res.setHeader('Content-Type', inline ? mimetype : FALLBACK_MIMETYPE);
+    res.setHeader('Content-Disposition', contentDisposition(inline ? 'inline' : 'attachment', doc.original_name));
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (isNetlify) res.send(body);
+    else res.sendFile(filePath);
   } catch (err) {
     serverError(res, err);
   }

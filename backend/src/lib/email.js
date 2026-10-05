@@ -1,3 +1,15 @@
+// Escapes user-controlled text (work-order titles, client/equipment names…)
+// before it's interpolated into an HTML email body.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[c]));
+}
+
 // Minimal transactional email sender via Resend's HTTP API (no SDK needed —
 // just fetch, so it doesn't add anything to the Netlify Functions bundle).
 // A no-op when RESEND_API_KEY isn't set, so email notifications are entirely
@@ -28,4 +40,4 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
-module.exports = { sendEmail };
+module.exports = { sendEmail, escapeHtml };
