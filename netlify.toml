@@ -9,6 +9,16 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# Pull-request deploy previews and branch deploys are skipped to save build
+# credits: an `ignore` command that exits 0 tells Netlify not to build. Only
+# production deploys (merges to the production branch) build. To get previews
+# back, delete these two sections.
+[context.deploy-preview]
+  ignore = "exit 0"
+
+[context.branch-deploy]
+  ignore = "exit 0"
+
 # SPA fallback so client-side routes (e.g. /clients/1) resolve on refresh.
 # Function routing for /api/* is defined via the `config.path` export in
 # netlify/functions/api.js and takes priority over this catch-all.

@@ -571,6 +571,16 @@ function WorkOrdersTab({ clientId }) {
 }
 
 // ---- Documents Tab ----
+// Keep in sync with INLINE_SAFE in backend/src/lib/fileTypes.js.
+const INLINE_SAFE_TYPES = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'text/plain',
+]);
+
 function DocumentsTab({ clientId }) {
   const [items, setItems] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -610,9 +620,21 @@ function DocumentsTab({ clientId }) {
   const handleOpen = async (item) => {
     try {
       const res = await axios.get(`/api/clients/${clientId}/documents/${item.id}/download`, { responseType: 'blob' });
-      const url = URL.createObjectURL(res.data);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      const type = (res.data.type || '').split(';')[0].toLowerCase();
+      if (INLINE_SAFE_TYPES.has(type)) {
+        const url = URL.createObjectURL(res.data);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else {
+        // Never render user-uploaded content (HTML, SVG, …) on the app's own
+        // origin, where it could read the session token — save it instead.
+        const url = URL.createObjectURL(res.data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = item.original_name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
     } catch (err) {
       alert('Erreur lors de l\'ouverture du document');
     }

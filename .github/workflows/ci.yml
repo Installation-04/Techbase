@@ -8,6 +8,24 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    # A real Postgres for the database tests (backend/test/helpers/pg.js creates
+    # a throwaway database per test file from this server).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: techbase
+          POSTGRES_PASSWORD: techbase
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U techbase"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://techbase:techbase@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,3 +63,41 @@ jobs:
       - run: npm ci
       - run: npx esbuild netlify/functions/api.js --bundle --platform=node --target=node20 --outfile=/tmp/api-bundle.js
       - run: npx esbuild netlify/functions/maintenance-scheduler.js --bundle --platform=node --target=node20 --outfile=/tmp/maintenance-bundle.js
+
+  # The whole platform as containers: build the images, bring the stack up the
+  # way install.sh does, and run the end-to-end smoke test (nginx, uploads as
+  # the non-root user, the scheduler container, settings passthrough, and data
+  # surviving a restart). Keeps "everything runs in Docker" true over time.
+  docker-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4 # the smoke script parses JSON with node
+        with:
+          node-version: 20
+      - name: Create .env with throwaway secrets
+        run: |
+          cp .env.example .env
+          sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 16)/" .env
+          sed -i "s/^GOOGLE_CLIENT_ID=.*/GOOGLE_CLIENT_ID=ci-client-id/" .env
+          sed -i "s/^GOOGLE_CLIENT_SECRET=.*/GOOGLE_CLIENT_SECRET=ci-client-secret/" .env
+      - name: Compose files are valid (including the HTTPS override)
+        run: |
+          docker compose config -q
+          DOMAIN=example.com docker compose -f docker-compose.yml -f docker-compose.https.yml config -q
+      - name: Build and start the stack
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: Smoke test
+        run: scripts/docker-smoke.sh --restart
+        env:
+          GOOGLE_CLIENT_ID: ci-client-id
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail 100
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
