@@ -8,6 +8,7 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 - Les réglages du `.env` (SSO, courriels, Acumatica, `PUBLIC_URL`…) atteignent maintenant l'API sous Docker ; auparavant seuls 8 réglages sur 27 étaient transmis.
 - Images durcies : API sans privilèges et dépendances de production seulement, vérifications de santé, nginx avec compression, cache long des fichiers fingerprintés et en-têtes de sécurité, port de l'API non publié sur l'hôte. `install.sh` n'annonce plus « prêt » si un service échoue.
 - **À savoir en mettant à jour** : `JWT_SECRET` doit être défini dans `.env` (gardez votre valeur actuelle) ; voir README, « Mise à jour ».
+- Les builds des déploiements de prévisualisation (pull requests) et de branche Netlify sont désactivés dans `netlify.toml` pour économiser les crédits de build ; seule une fusion dans la branche de production construit (voir README, « Crédits de build Netlify »).
 - Correctif : un bon de service préventif terminé ou annulé n'est plus recréé chaque jour pour le même équipement.
 - Correctif : modifier un EPI dont la quantité est 0 ne la remettait pas à 1 de force.
 - Sécurité : les documents téléversés (HTML, SVG…) ne s'affichent plus dans l'application ; seuls les types sûrs (PDF, images, texte) s'ouvrent, le reste se télécharge. Téléversements de plus de 1 Mo acceptés derrière nginx.

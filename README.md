@@ -218,6 +218,10 @@ L'application peut être déployée entièrement sur Netlify :
 4. Définir `JWT_SECRET` dans les variables d'environnement du site Netlify (obligatoire en production — le démarrage échoue si absent).
 5. Déployer. Le frontend appelle l'API relativement (`/api/...`), qui est automatiquement routée vers la fonction serverless sur le même domaine.
 
+### Crédits de build Netlify
+
+`netlify.toml` désactive les builds des **déploiements de prévisualisation** (pull requests) et des déploiements de branche (`ignore = "exit 0"` dans les contextes `deploy-preview` et `branch-deploy`) pour ne pas consommer de crédits à chaque push. Seule une fusion dans la branche de production déclenche un build. Pour retrouver les prévisualisations, supprimez ces deux sections.
+
 ### Déploiement alternatif : frontend Netlify + backend hébergé séparément
 
 Si vous préférez héberger le backend ailleurs (Render, Railway, Fly.io…) plutôt que via les Netlify Functions :
