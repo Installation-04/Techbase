@@ -85,9 +85,17 @@ services:
     restart: unless-stopped
     init: true
     command: ["node", "src/scheduler.js"]
-    # The image's healthcheck probes the API port, which this process doesn't serve.
+    # The image's healthcheck probes the API port, which this process doesn't
+    # serve, so check that the scheduler process itself is alive. (A service
+    # with no healthcheck at all makes `up --wait` fail on Docker Compose
+    # 2.38, the version GitHub's runners ship.) The [n] stops pgrep from
+    # matching the shell that runs this very command.
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "pgrep -f '[n]ode src/scheduler.js' >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       <<: *common-env
       SCHEDULER_TIME: ${SCHEDULER_TIME:-06:00}
