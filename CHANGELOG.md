@@ -12,6 +12,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 - Sécurité : mise à jour de la dépendance `proxy-addr` (2.0.7 → 2.0.8, avis de gravité critique sur la détection d'adresses IP derrière un proxy) dans l'API, l'image Docker et la fonction Netlify.
 - Correctif : un bon de service préventif terminé ou annulé n'est plus recréé chaque jour pour le même équipement.
 - Correctif : modifier un EPI dont la quantité est 0 ne la remettait pas à 1 de force.
+- Correctif : un mot de passe erroné (ou un courriel déjà utilisé à l'inscription, ou un jeton SSO refusé) ne recharge plus la page de connexion en effaçant le message d'erreur ; seule une session réellement expirée redirige vers la connexion.
+- Correctif : les dates sans heure (prochaine maintenance, expiration d'un EPI, échéance d'un bon de service) s'affichaient un jour trop tôt au Québec, et changer le statut d'un bon de service pouvait décaler son échéance stockée d'un jour selon le fuseau horaire du serveur (typiquement un conteneur Docker réglé sur `TZ`). Elles sont maintenant transportées et affichées comme de simples dates `AAAA-MM-JJ`, et les champs de date des formulaires de modification sont de nouveau préremplis.
 - Sécurité : les documents téléversés (HTML, SVG…) ne s'affichent plus dans l'application ; seuls les types sûrs (PDF, images, texte) s'ouvrent, le reste se télécharge. Téléversements de plus de 1 Mo acceptés derrière nginx.
 
 ## [0.0.7] - Schéma de base de données auto-réparateur

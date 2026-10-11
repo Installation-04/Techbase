@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { formatDate } from '../lib/dates.mjs';
 
 // ---- Generic CRUD Modal ----
 function GenericModal({ title, fields, initialData, onClose, onSave }) {
@@ -108,7 +109,7 @@ function EquipmentTab({ clientId }) {
             <div>
               <p className="font-medium text-gray-900">{item.name}</p>
               <p className="text-sm text-gray-500">{item.type} {item.serial_number && `· S/N: ${item.serial_number}`}</p>
-              {item.next_maintenance && <p className="text-xs text-orange-600 mt-1">Prochaine maintenance: {new Date(item.next_maintenance).toLocaleDateString('fr-FR')}</p>}
+              {item.next_maintenance && <p className="text-xs text-orange-600 mt-1">Prochaine maintenance: {formatDate(item.next_maintenance)}</p>}
             </div>
             <div className="flex gap-2">
               <button onClick={() => setModal(item)} className="px-3 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-100 transition-colors">Modifier</button>
@@ -366,7 +367,7 @@ function EpiTab({ clientId }) {
               </p>
               {item.expiry_date && (
                 <p className="text-xs text-orange-600 mt-1">
-                  Expiration: {new Date(item.expiry_date).toLocaleDateString('fr-FR')}
+                  Expiration: {formatDate(item.expiry_date)}
                 </p>
               )}
             </div>
@@ -541,7 +542,7 @@ function WorkOrdersTab({ clientId }) {
                 <p className="text-xs text-gray-400 mt-2">
                   {item.equipment_name && `${item.equipment_name} · `}
                   {item.assigned_to_name ? `Assigné à ${item.assigned_to_name}` : 'Non assigné'}
-                  {item.due_date && ` · Échéance ${new Date(item.due_date).toLocaleDateString('fr-FR')}`}
+                  {item.due_date && ` · Échéance ${formatDate(item.due_date)}`}
                 </p>
               </div>
               <div className="flex gap-2 ml-4">
