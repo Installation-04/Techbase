@@ -1,7 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { createPool } = require('./db');
 const schema = require('./db/schema');
@@ -40,15 +38,9 @@ app.use('/api', rateLimit({
 const pool = createPool();
 app.locals.db = pool;
 
-if (!isNetlify) {
-  // '/app/uploads' is the Docker container's path (set explicitly via
-  // UPLOADS_DIR in docker-compose.yml); default to a path relative to this
-  // file so requiring the app outside a container (e.g. in CI) never tries
-  // to create a directory it has no permission for.
-  const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  app.use('/uploads', express.static(uploadsDir));
-}
+// Uploaded documents are deliberately NOT served as static files: every read
+// goes through the authenticated /api/clients/:id/documents/:id/download
+// route (see routes/documents.js, which also owns the uploads directory).
 
 const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');

@@ -97,3 +97,32 @@ test('login rejects an unknown email without leaking which part was wrong', asyn
   assert.equal(res.status, 401);
   assert.equal(res.body.error, 'Identifiants invalides');
 });
+
+test('an SSO-only account gets the same generic error as a wrong password', async () => {
+  const db = createFakeDb();
+  app.locals.db = db;
+  db.users.push({ id: 7, email: 'sso@example.com', password_hash: null, name: 'Sso', role: 'user', provider: 'google', provider_id: 'g-1' });
+
+  const res = await request(app).post('/api/users/login')
+    .send({ email: 'sso@example.com', password: 'password123' });
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, 'Identifiants invalides');
+});
+
+test('login does a bcrypt comparison even when the account is unknown or SSO-only', async () => {
+  const bcrypt = require('bcryptjs');
+  const db = createFakeDb();
+  app.locals.db = db;
+  db.users.push({ id: 7, email: 'sso@example.com', password_hash: null, name: 'Sso', role: 'user', provider: 'google', provider_id: 'g-1' });
+
+  const original = bcrypt.compare;
+  let calls = 0;
+  bcrypt.compare = async (...args) => { calls++; return original(...args); };
+  try {
+    await request(app).post('/api/users/login').send({ email: 'nobody@example.com', password: 'password123' });
+    await request(app).post('/api/users/login').send({ email: 'sso@example.com', password: 'password123' });
+  } finally {
+    bcrypt.compare = original;
+  }
+  assert.equal(calls, 2);
+});

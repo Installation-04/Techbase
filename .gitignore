@@ -4,3 +4,6 @@ dist/
 uploads/
 *.log
 .netlify/
+
+# Local dev data (scripts/dev-local.sh)
+.local/

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { shouldForceLogout } from '../lib/http.mjs';
 
 const AuthContext = createContext(null);
 
@@ -26,7 +27,9 @@ export function AuthProvider({ children }) {
     const interceptor = axios.interceptors.response.use(
       res => res,
       err => {
-        if (err.response?.status === 401) {
+        // Only an expired session logs out. A refused login/registration (or SSO
+        // token) is reported by its own page; a hard reload would wipe the message.
+        if (shouldForceLogout(err)) {
           doLogout();
           window.location.href = '/login';
         }

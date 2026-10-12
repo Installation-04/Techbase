@@ -1,0 +1,39 @@
+# Optional: serve TechIBase over HTTPS with automatic certificates (Caddy).
+#
+# 1. Point your domain's DNS at this server and open ports 80 and 443.
+# 2. In .env set  DOMAIN=app.example.com  and  PUBLIC_URL=https://app.example.com
+#    (PUBLIC_URL is what Google/Microsoft SSO redirects back to).
+# 3. Start with both files:
+#      docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build --wait
+#
+# Caddy becomes the only public entry point; the web container is no longer
+# published on the host.
+services:
+  frontend:
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is not set in .env (for example app.example.com)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy_data:
+  caddy_config:

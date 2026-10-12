@@ -2,6 +2,20 @@
 
 Toutes les versions notables de TechIBase sont documentées ici. Le projet est en **bêta** (`0.0.x`), voir [README.md#version](README.md#version) pour la convention de version.
 
+## [Non publié]
+
+- **Docker complet** : toute la plateforme tourne désormais dans des conteneurs — base de données, API, **planificateur** (nouveau : les bons de service préventifs et le résumé quotidien fonctionnaient seulement sur Netlify), et application web. HTTPS automatique en option (Caddy), sauvegarde/restauration documentées, `scripts/docker-smoke.sh` et un job CI qui vérifient l'ensemble de bout en bout.
+- Les réglages du `.env` (SSO, courriels, Acumatica, `PUBLIC_URL`…) atteignent maintenant l'API sous Docker ; auparavant seuls 8 réglages sur 27 étaient transmis.
+- Images durcies : API sans privilèges et dépendances de production seulement, vérifications de santé, nginx avec compression, cache long des fichiers fingerprintés et en-têtes de sécurité, port de l'API non publié sur l'hôte. `install.sh` n'annonce plus « prêt » si un service échoue.
+- **À savoir en mettant à jour** : `JWT_SECRET` doit être défini dans `.env` (gardez votre valeur actuelle) ; voir README, « Mise à jour ».
+- Les builds des déploiements de prévisualisation (pull requests) et de branche Netlify sont désactivés dans `netlify.toml` pour économiser les crédits de build ; seule une fusion dans la branche de production construit (voir README, « Crédits de build Netlify »).
+- Sécurité : mise à jour de la dépendance `proxy-addr` (2.0.7 → 2.0.8, avis de gravité critique sur la détection d'adresses IP derrière un proxy) dans l'API, l'image Docker et la fonction Netlify.
+- Correctif : un bon de service préventif terminé ou annulé n'est plus recréé chaque jour pour le même équipement.
+- Correctif : modifier un EPI dont la quantité est 0 ne la remettait pas à 1 de force.
+- Correctif : un mot de passe erroné (ou un courriel déjà utilisé à l'inscription, ou un jeton SSO refusé) ne recharge plus la page de connexion en effaçant le message d'erreur ; seule une session réellement expirée redirige vers la connexion.
+- Correctif : les dates sans heure (prochaine maintenance, expiration d'un EPI, échéance d'un bon de service) s'affichaient un jour trop tôt au Québec, et changer le statut d'un bon de service pouvait décaler son échéance stockée d'un jour selon le fuseau horaire du serveur (typiquement un conteneur Docker réglé sur `TZ`). Elles sont maintenant transportées et affichées comme de simples dates `AAAA-MM-JJ`, et les champs de date des formulaires de modification sont de nouveau préremplis.
+- Sécurité : les documents téléversés (HTML, SVG…) ne s'affichent plus dans l'application ; seuls les types sûrs (PDF, images, texte) s'ouvrent, le reste se télécharge. Téléversements de plus de 1 Mo acceptés derrière nginx.
+
 ## [0.0.7] - Schéma de base de données auto-réparateur
 
 - La migration automatique du schéma (`netlify/database/migrations/`) reposait entièrement sur l'ancienne extension « Netlify DB », désormais remplacée par la fonctionnalité intégrée « Netlify Database ». Ce mécanisme d'application automatique ne s'est jamais déclenché sur le nouveau système, laissant la base de données sans les tables de l'application (seule une table `todo` de démonstration existait) — d'où l'erreur 502 sur toute requête touchant la base (ex. création de compte).

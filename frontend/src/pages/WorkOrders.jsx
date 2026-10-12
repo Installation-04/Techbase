@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { formatDate } from '../lib/dates.mjs';
 
 const STATUS_LABELS = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', done: 'Terminé', cancelled: 'Annulé' };
 const STATUS_ORDER = ['open', 'assigned', 'in_progress', 'done', 'cancelled'];
@@ -174,7 +175,7 @@ export default function WorkOrders() {
     const header = ['Titre', 'Client', 'Équipement', 'Statut', 'Priorité', 'Assigné à', 'Échéance'];
     const rows = items.map(i => [
       i.title, i.client_name, i.equipment_name || '', STATUS_LABELS[i.status], PRIORITY_LABELS[i.priority],
-      i.assigned_to_name || '', i.due_date ? new Date(i.due_date).toLocaleDateString('fr-FR') : '',
+      i.assigned_to_name || '', formatDate(i.due_date),
     ]);
     const csv = [header, ...rows].map(row => row.map(escape).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -218,7 +219,7 @@ export default function WorkOrders() {
                   <Link to={`/clients/${item.client_id}`} className="text-xs text-blue-500 hover:underline">{item.client_name}</Link>
                   <p className={`text-xs mt-1 ${PRIORITY_COLORS[item.priority]}`}>{PRIORITY_LABELS[item.priority]}</p>
                   {item.assigned_to_name && <p className="text-xs text-gray-500">👤 {item.assigned_to_name}</p>}
-                  {item.due_date && <p className="text-xs text-gray-400">📅 {new Date(item.due_date).toLocaleDateString('fr-FR')}</p>}
+                  {item.due_date && <p className="text-xs text-gray-400">📅 {formatDate(item.due_date)}</p>}
                   <select
                     value={item.status}
                     onChange={e => updateStatus(item, e.target.value)}
