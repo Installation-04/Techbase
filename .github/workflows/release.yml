@@ -147,7 +147,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   # Build the two images as they will be shipped, start the stack from them
-  # through docker-compose.release.yml (nothing is built or pulled), and run the
+  # through docker-compose.release.yml (our images are neither rebuilt nor pulled), and run the
   # same end-to-end smoke test. Runs for rehearsals too.
   build-test:
     needs: prepare
@@ -199,8 +199,10 @@ jobs:
           test "$(docker compose config | grep -c '^ *build:')" = "0"
           echo "$images" | grep -qx "$REGISTRY_REPO/techbase-backend:$VERSION"
           echo "$images" | grep -qx "$REGISTRY_REPO/techbase-frontend:$VERSION"
-      - name: Start the stack (no pulls)
-        run: docker compose up -d --pull never --wait --wait-timeout 300
+      - name: Start the stack (only the database image is pulled; ours are the ones just built)
+        run: |
+          docker compose pull db
+          docker compose up -d --pull never --wait --wait-timeout 300
       - name: The API and the sidebar report the release version
         run: |
           test "$(curl -fsS http://localhost/api/health | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')" = "$VERSION"
