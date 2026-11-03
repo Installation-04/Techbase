@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call: # the Release workflow runs the whole suite on the commit it publishes
 
 jobs:
   backend-tests:
@@ -83,10 +84,11 @@ jobs:
           sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 16)/" .env
           sed -i "s/^GOOGLE_CLIENT_ID=.*/GOOGLE_CLIENT_ID=ci-client-id/" .env
           sed -i "s/^GOOGLE_CLIENT_SECRET=.*/GOOGLE_CLIENT_SECRET=ci-client-secret/" .env
-      - name: Compose files are valid (including the HTTPS override)
+      - name: Compose files are valid (including the HTTPS and release overrides)
         run: |
           docker compose config -q
           DOMAIN=example.com docker compose -f docker-compose.yml -f docker-compose.https.yml config -q
+          TECHIBASE_VERSION=0.0.0 docker compose -f docker-compose.yml -f docker-compose.release.yml config -q
       - name: Build and start the stack
         run: docker compose up -d --build --wait --wait-timeout 300
       - name: Smoke test

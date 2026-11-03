@@ -40,10 +40,10 @@ else
   echo "Fichier .env déjà présent, conservé tel quel."
 fi
 
-# 3. Construire et démarrer les conteneurs (db, backend, scheduler, frontend).
+# 3. Construire (ou télécharger, avec le paquet de release) et démarrer les conteneurs (db, backend, scheduler, frontend).
 # --wait attend que chaque service soit « healthy » et échoue sinon : on
 # n'annonce donc « prêt » que si l'application répond réellement.
-echo "Construction et démarrage des conteneurs (db, backend, scheduler, frontend)..."
+echo "Démarrage des conteneurs (db, backend, scheduler, frontend) ; les images sont construites ou téléchargées au besoin..."
 if ! docker compose up --build -d --wait --wait-timeout 240; then
   echo ""
   echo "Erreur : un service n'a pas démarré correctement. État et derniers journaux :" >&2
