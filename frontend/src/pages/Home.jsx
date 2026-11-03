@@ -6,6 +6,8 @@ import GlobalSearch from '../components/GlobalSearch';
 
 const STATUS_LABELS = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', done: 'Terminé', cancelled: 'Annulé' };
 const STATUS_ORDER = ['open', 'assigned', 'in_progress', 'done', 'cancelled'];
+// Height of the tallest bar of the interventions chart (its container is h-32 = 128 px, minus the month label).
+const CHART_BAR_MAX_PX = 96;
 
 function StatTile({ label, value, tone = 'default', onClick }) {
   const toneClasses = {
@@ -96,7 +98,9 @@ export default function Home() {
                     <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
                       <div
                         className="w-full bg-blue-500 rounded-t"
-                        style={{ height: `${(m.count / maxMonthCount) * 100}%`, minHeight: m.count > 0 ? '4px' : 0 }}
+                        // Pixels, not a percentage: the column has no fixed height, so a
+                        // percentage collapsed every bar to its 4 px minimum.
+                        style={{ height: m.count > 0 ? `${Math.max(4, Math.round((m.count / maxMonthCount) * CHART_BAR_MAX_PX))}px` : 0 }}
                         title={`${m.count} intervention(s)`}
                       />
                       <span className="text-[10px] text-gray-400">{m.month.slice(5)}</span>
