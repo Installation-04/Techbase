@@ -26,6 +26,12 @@ async function createTestDb() {
   const url = new URL(baseUrl);
   url.pathname = `/${name}`;
   const pool = new Pool({ connectionString: url.toString() });
+  // A connection error mid-test must still fail the test, so it is rethrown.
+  // Once drop() has started, errors from connections being closed are expected.
+  let closing = false;
+  pool.on('error', error => {
+    if (!closing) throw error;
+  });
   await pool.query(schema);
 
   return {
@@ -33,10 +39,25 @@ async function createTestDb() {
     name,
     url: url.toString(),
     async drop() {
+      closing = true;
       await pool.end();
       const cleanup = new Pool({ connectionString: baseUrl, max: 1 });
-      await cleanup.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
-      await cleanup.end();
+      try {
+        // pool.end() resolves before the sockets have really closed (pg-pool
+        // does not wait for client.end()), so DROP DATABASE ... WITH (FORCE) used
+        // to kill backends that were still closing; the "terminating connection
+        // due to administrator command" error then surfaced after the test had
+        // ended and failed the whole file. Wait until Postgres has reaped them.
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+          const { rows } = await cleanup.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1', [name]);
+          if (rows[0].n === 0) break;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        await cleanup.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+      } finally {
+        await cleanup.end();
+      }
     },
   };
 }
