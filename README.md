@@ -2,6 +2,10 @@
 
 Application de gestion pour techniciens de terrain. Centralise toutes les informations critiques pour réduire le temps de réponse lors des interventions.
 
+![Tableau de bord de TechIBase](docs/images/03-accueil.png)
+
+📖 **[Documentation complète avec captures d'écran → `docs/`](docs/README.md)** : [installation](docs/installation.md), [premiers pas](docs/premiers-pas.md), [fiche client](docs/fiche-client.md), [bons de service](docs/bons-de-service.md), [administration](docs/administration.md), [versions et mises à jour](docs/versions-et-mises-a-jour.md), [dépannage](docs/depannage.md).
+
 ## Version
 
 Le projet est actuellement en **bêta** (versions `0.0.x`, sous le `1.0.0`). Le numéro de version est synchronisé dans `package.json` (racine), `backend/package.json` et `frontend/package.json` — les trois doivent rester identiques à chaque déploiement.
@@ -40,9 +44,20 @@ Première publication : GitHub crée les deux paquets en privé. Dans **Packages
 
 ## Démarrage rapide
 
-### Installation automatique (recommandé)
+### Une commande, depuis GitHub (recommandé)
+
+Il suffit de Docker (avec Compose). Pas besoin de cloner le dépôt :
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Techbase/main/get-techibase.sh | bash
+```
+
+Le script télécharge la **dernière release**, la déploie dans `./techibase`, génère un `.env` avec des secrets aléatoires et démarre les conteneurs à partir des images publiées. Options : `bash -s -- --version 0.0.9 --dir /opt/techibase`. **Relancer la même commande met à jour** une installation existante (le `.env` et les données sont conservés). Détails : [docs/installation.md](docs/installation.md).
+
+### Depuis le code source
+
+```bash
+git clone https://github.com/Installation-04/Techbase.git && cd Techbase
 ./install.sh
 ```
 
@@ -98,7 +113,7 @@ L'inscription ouverte est pratique pour démarrer, mais TechIBase stocke des mot
 | **Journal** | Historique des interventions par client |
 | **Documents** | Bibliothèque de fichiers (PDF, photos, manuels) par client |
 | **Intégrations** | Chaque utilisateur connecte son propre compte ERP externe (Acumatica) et synchronise ses clients, onglet par fiche client — voir « Intégration ERP » ci-dessous |
-| **Utilisateurs** | Gestion des comptes (Admin / Technicien), accès réservé aux admins |
+| **Utilisateurs** | Gestion des comptes (Administrateur / Utilisateur), accès réservé aux administrateurs |
 
 ## Recherche globale
 
@@ -140,8 +155,8 @@ TechIBase peut synchroniser ses clients avec un ERP externe. Le premier connecte
 
 ## Rôles
 
-- **Admin** — accès complet, gestion des utilisateurs, suppression de clients
-- **Technicien** — accès en lecture/écriture sur tous les modules métier
+- **Administrateur** — accès complet, gestion des utilisateurs, suppression de clients
+- **Utilisateur** (le technicien) — accès en lecture/écriture sur tous les modules métier
 
 ## Structure du projet
 
@@ -149,8 +164,12 @@ TechIBase peut synchroniser ses clients avec un ERP externe. Le premier connecte
 techbase/
 ├── docker-compose.yml        # db + backend + scheduler + frontend
 ├── docker-compose.https.yml  # HTTPS optionnel (Caddy)
+├── docker-compose.release.yml # utilise les images publiées (GHCR) au lieu de construire
 ├── Caddyfile
-├── scripts/                  # dev-local.sh (sans Docker), docker-smoke.sh (test de bout en bout)
+├── get-techibase.sh          # installation en une commande depuis GitHub (curl ... | bash)
+├── install.sh                # installation locale : .env aléatoire + démarrage
+├── docs/                     # documentation (wiki) avec captures d'écran
+├── scripts/                  # dev-local.sh, docker-smoke.sh, bump-version.js, release-notes.js
 ├── .env.example
 ├── package.json              # Deps miroir pour le bundler des Netlify Functions
 ├── netlify.toml
@@ -286,6 +305,8 @@ Pour exposer l'application sur Internet, utilisez le fichier `docker-compose.htt
 1. Faites pointer le DNS de votre domaine vers le serveur et ouvrez les ports 80 et 443.
 2. Dans `.env` : `DOMAIN=app.exemple.com` et `PUBLIC_URL=https://app.exemple.com` (adresse de retour du SSO).
 3. Démarrez avec les deux fichiers : `docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build --wait`
+
+**Installation par la commande rapide ou le paquet de release** : le `.env` y définit `COMPOSE_FILE` (images publiées) et des options `-f` en ligne de commande le **remplacent**. Ajoutez plutôt le fichier HTTPS à la liste dans le `.env` : `COMPOSE_FILE=docker-compose.yml:docker-compose.release.yml:docker-compose.https.yml`, puis `docker compose up -d --wait`.
 
 Caddy devient alors l'unique point d'entrée public. Pour l'essayer en local, mettez `DOMAIN=localhost` (certificat émis par l'autorité locale de Caddy ; le navigateur demandera de l'accepter).
 

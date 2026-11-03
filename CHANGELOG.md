@@ -4,6 +4,10 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- **Installation en une commande** : `curl -fsSL https://raw.githubusercontent.com/Installation-04/Techbase/main/get-techibase.sh | bash` télécharge la dernière release (ou `--version X.Y.Z`), la déploie dans `./techibase`, génère le `.env` et démarre les conteneurs à partir des images publiées. Relancer la commande met à jour une installation existante en conservant le `.env` et les données.
+- **Documentation** : un wiki dans `docs/` (installation, premiers pas, fiche client, bons de service, recherche et notifications, administration, versions et mises à jour, dépannage), illustré de captures d'écran faites sur des données fictives. Le README y renvoie et présente la nouvelle installation ; il appelle maintenant « Utilisateur » le rôle que l'interface affiche ainsi.
+- Correctif : le graphique « Interventions (6 derniers mois) » du tableau de bord dessinait toutes ses barres à la même hauteur minimale (4 px) quel que soit le nombre d'interventions ; les hauteurs sont maintenant proportionnelles au mois le plus chargé.
+
 ## [0.0.9] - Images Docker versionnées, sécurité et correctifs
 
 - **Releases Docker** : chaque version est publiée sous forme d'images sur le GitHub Container Registry (`ghcr.io/installation-04/techbase-backend` et `techbase-frontend`, amd64 et arm64) avec les étiquettes `X.Y.Z`, `X.Y`, `sha-…` et `latest`. Une version déjà publiée n'est jamais écrasée. Chaque release GitHub joint un paquet `techibase-vX.Y.Z-docker.tar.gz` pour installer sans cloner le dépôt (voir README, « Installer depuis les images publiées »).
