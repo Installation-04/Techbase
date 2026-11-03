@@ -6,9 +6,10 @@ Application de gestion pour techniciens de terrain. Centralise toutes les inform
 
 Le projet est actuellement en **bêta** (versions `0.0.x`, sous le `1.0.0`). Le numéro de version est synchronisé dans `package.json` (racine), `backend/package.json` et `frontend/package.json` — les trois doivent rester identiques à chaque déploiement.
 
-À chaque déploiement en production, incrémenter le numéro de version (`0.0.1` → `0.0.2`, etc.) dans les trois fichiers avant de merger/déployer. Le numéro est visible :
+À chaque release, incrémenter le numéro de version (`0.0.1` → `0.0.2`, etc.) avec `node scripts/bump-version.js 0.0.x` (il met à jour les trois `package.json` **et** leurs fichiers de verrouillage). La CI échoue si ces fichiers ne sont pas identiques ou si le journal des versions n'a pas de section pour ce numéro. Le numéro est visible :
 - Dans l'application (pied de la barre latérale)
 - Via l'API : `GET /api/health` retourne `{ "status": "ok", "version": "0.0.x" }`
+- Dans les images Docker publiées : étiquette `X.Y.Z` (voir ci-dessous)
 
 Le premier `1.0.0` marquera la sortie de bêta.
 
@@ -16,17 +17,19 @@ Le premier `1.0.0` marquera la sortie de bêta.
 
 Voir [CHANGELOG.md](CHANGELOG.md) pour le détail de chaque version publiée.
 
-### Créer une release GitHub
+### Créer une release (images Docker + release GitHub)
 
-Après avoir mergé et déployé une nouvelle version, créer un tag et une release GitHub correspondants :
+Chaque version est publiée par le workflow **Release** (`.github/workflows/release.yml`) : il vérifie la version, exécute toute la CI sur le commit, construit les images, démarre la pile complète à partir d'elles et lance le test de bout en bout, puis publie les images et crée la release GitHub avec son paquet d'installation.
 
-```bash
-git checkout main && git pull origin main
-git tag -a v0.0.x -m "v0.0.x - résumé court"
-git push origin v0.0.x
-```
+1. Préparer la version : `node scripts/bump-version.js 0.0.x`, puis déplacer les entrées « Non publié » de [CHANGELOG.md](CHANGELOG.md) sous un titre `## [0.0.x] - résumé`. Faire fusionner dans `main` par une pull request.
+2. **Répétition** : sur GitHub, **Actions → Release → Run workflow** (branche `main`), version `0.0.x`, **publish désactivé**. Rien n'est publié ; le workflow construit et teste tout. À faire en premier, c'est gratuit.
+3. **Publication** : relancer avec **publish activé**. Le workflow publie les images, puis crée le tag `v0.0.x` et la release GitHub (cochée « pre-release » tant que la version est `0.x`). Pousser vous-même un tag `v0.0.x` sur un commit de `main` revient au même.
 
-Puis, sur GitHub → **Releases** → **Draft a new release**, choisir le tag `v0.0.x`, coller la section correspondante du [CHANGELOG.md](CHANGELOG.md) comme description, et cocher **Set as a pre-release** tant que le projet est en `0.0.x` bêta.
+Garde-fous : seuls les commits de `main` sont publiés ; une version déjà publiée (tag ou image) n'est jamais écrasée ; le tag doit correspondre au numéro de `package.json`.
+
+**Étiquettes des images** (`ghcr.io/installation-04/techbase-backend` et `techbase-frontend`, pour amd64 et arm64) : `X.Y.Z` (exacte, immuable), `X.Y` (dernière correction de cette série), `sha-<commit>`, et `latest` (dernière version stable ; jamais une version `-rc`). Pour une mise en production, épinglez `X.Y.Z`.
+
+Première publication : GitHub crée les deux paquets en privé. Dans **Packages → chaque paquet → Package settings**, passez la visibilité à **Public** pour que `docker pull` fonctionne sans connexion.
 
 ## Stack
 
@@ -203,6 +206,8 @@ Copier `.env.example` en `.env` et adapter les valeurs (`./install.sh` le fait a
 
 ## Déploiement complet sur Netlify
 
+> ⚠️ **Netlify ne construit plus ce projet** (voir « Netlify ne construit plus le projet » plus bas) : les étapes ci-dessous ne s'appliquent qu'après avoir retiré la ligne `ignore` de `netlify.toml`. La méthode de livraison actuelle est Docker.
+
 L'application peut être déployée entièrement sur Netlify :
 
 - **Frontend** : build statique React (`netlify.toml`, publié depuis `frontend/dist`)
@@ -218,9 +223,9 @@ L'application peut être déployée entièrement sur Netlify :
 4. Définir `JWT_SECRET` dans les variables d'environnement du site Netlify (obligatoire en production — le démarrage échoue si absent).
 5. Déployer. Le frontend appelle l'API relativement (`/api/...`), qui est automatiquement routée vers la fonction serverless sur le même domaine.
 
-### Crédits de build Netlify
+### Netlify ne construit plus le projet
 
-`netlify.toml` désactive les builds des **déploiements de prévisualisation** (pull requests) et des déploiements de branche (`ignore = "exit 0"` dans les contextes `deploy-preview` et `branch-deploy`) pour ne pas consommer de crédits à chaque push. Seule une fusion dans la branche de production déclenche un build. Pour retrouver les prévisualisations, supprimez ces deux sections.
+`netlify.toml` contient `ignore = "exit 0"` dans `[build]` : Netlify ignore tous les builds (production, prévisualisations et déploiements de branche), donc plus aucun crédit de build n'est consommé. Les versions sont maintenant livrées en images Docker (voir « Créer une release »). Le site Netlify déjà en ligne continue de servir son dernier déploiement, et ses fonctions (dont la tâche quotidienne) continuent de s'exécuter tant que vous ne suspendez pas le site dans le tableau de bord Netlify. Pour que Netlify construise de nouveau, supprimez la ligne `ignore`.
 
 ### Déploiement alternatif : frontend Netlify + backend hébergé séparément
 
@@ -260,6 +265,19 @@ Toute la plateforme tourne dans des conteneurs ; Netlify n'est pas nécessaire.
 Après modification du `.env` : `docker compose up -d` (les conteneurs concernés sont recréés).
 
 **Planificateur** : `docker compose logs scheduler` affiche la prochaine exécution. Pour déclencher les tâches immédiatement : `docker compose exec scheduler node src/scheduler.js --once`. Elles sont idempotentes : relancer ne crée aucun doublon.
+
+### Installer depuis les images publiées (sans cloner le dépôt)
+
+Chaque release GitHub joint `techibase-vX.Y.Z-docker.tar.gz` : les fichiers Compose, la base initiale, `install.sh` et un `.env.example` déjà réglé sur cette version.
+
+```bash
+tar xzf techibase-v0.0.9-docker.tar.gz && cd techibase-v0.0.9-docker
+./install.sh        # crée .env avec des secrets aléatoires, télécharge les images, démarre
+```
+
+Le `.env` contient `TECHIBASE_VERSION` (la version installée) et `COMPOSE_FILE=docker-compose.yml:docker-compose.release.yml` : un simple `docker compose up -d` utilise donc les images publiées au lieu de les construire. Depuis un dépôt cloné, retirez ou commentez ces deux lignes pour construire depuis les sources, ou ajoutez-les pour utiliser les images publiées.
+
+**Mettre à jour** : changer `TECHIBASE_VERSION` dans `.env` (ou mettre `latest`), puis `docker compose pull && docker compose up -d`. Les volumes (`db_data`, `uploads`) sont conservés. **Revenir en arrière** : remettre l'ancienne version et relancer la même commande ; c'est sans risque pour les données tant qu'aucune version n'a modifié le schéma de la base (lisez le CHANGELOG avant de rétrograder).
 
 ### HTTPS
 

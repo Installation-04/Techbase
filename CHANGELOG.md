@@ -4,11 +4,15 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+## [0.0.9] - Images Docker versionnées, sécurité et correctifs
+
+- **Releases Docker** : chaque version est publiée sous forme d'images sur le GitHub Container Registry (`ghcr.io/installation-04/techbase-backend` et `techbase-frontend`, amd64 et arm64) avec les étiquettes `X.Y.Z`, `X.Y`, `sha-…` et `latest`. Une version déjà publiée n'est jamais écrasée. Chaque release GitHub joint un paquet `techibase-vX.Y.Z-docker.tar.gz` pour installer sans cloner le dépôt (voir README, « Installer depuis les images publiées »).
+- Le numéro de version est vérifié par la CI (trois `package.json` et leurs fichiers de verrouillage identiques, section correspondante dans ce journal) et se change avec `node scripts/bump-version.js X.Y.Z`. Le workflow `Release`, qui ne fonctionnait pas, est réécrit : tests, essai complet de la pile Docker, publication des images, puis release GitHub.
+- **Netlify ne construit plus le projet** (`ignore = "exit 0"` dans `netlify.toml`, tous les contextes, production comprise). Le site Netlify existant continue de servir son dernier déploiement ; ses fonctions, dont la tâche quotidienne, continuent de s'exécuter jusqu'à ce que vous suspendiez le site dans Netlify.
 - **Docker complet** : toute la plateforme tourne désormais dans des conteneurs — base de données, API, **planificateur** (nouveau : les bons de service préventifs et le résumé quotidien fonctionnaient seulement sur Netlify), et application web. HTTPS automatique en option (Caddy), sauvegarde/restauration documentées, `scripts/docker-smoke.sh` et un job CI qui vérifient l'ensemble de bout en bout.
 - Les réglages du `.env` (SSO, courriels, Acumatica, `PUBLIC_URL`…) atteignent maintenant l'API sous Docker ; auparavant seuls 8 réglages sur 27 étaient transmis.
 - Images durcies : API sans privilèges et dépendances de production seulement, vérifications de santé, nginx avec compression, cache long des fichiers fingerprintés et en-têtes de sécurité, port de l'API non publié sur l'hôte. `install.sh` n'annonce plus « prêt » si un service échoue.
 - **À savoir en mettant à jour** : `JWT_SECRET` doit être défini dans `.env` (gardez votre valeur actuelle) ; voir README, « Mise à jour ».
-- Les builds des déploiements de prévisualisation (pull requests) et de branche Netlify sont désactivés dans `netlify.toml` pour économiser les crédits de build ; seule une fusion dans la branche de production construit (voir README, « Crédits de build Netlify »).
 - Sécurité : mise à jour de la dépendance `proxy-addr` (2.0.7 → 2.0.8, avis de gravité critique sur la détection d'adresses IP derrière un proxy) dans l'API, l'image Docker et la fonction Netlify.
 - Correctif : un bon de service préventif terminé ou annulé n'est plus recréé chaque jour pour le même équipement.
 - Correctif : modifier un EPI dont la quantité est 0 ne la remettait pas à 1 de force.

@@ -1,0 +1,28 @@
+# Run the published, versioned images instead of building from source.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.release.yml up -d
+#
+# The release bundle (techibase-vX.Y.Z-docker.tar.gz) ships a .env.example that
+# already sets both variables below, so there a plain `docker compose up -d`
+# is enough:
+#
+#   TECHIBASE_VERSION=0.0.9
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.release.yml
+#
+# Upgrade: change TECHIBASE_VERSION, then `docker compose pull && docker compose up -d`.
+# Pin an exact version (recommended) or float on `latest`. The scheduler runs
+# the same image as the API, with a different command.
+#
+# TECHIBASE_REGISTRY only needs changing for a fork that publishes its own images.
+services:
+  backend:
+    image: ${TECHIBASE_REGISTRY:-ghcr.io/installation-04}/techbase-backend:${TECHIBASE_VERSION:?TECHIBASE_VERSION is not set in .env (for example 0.0.9, or latest)}
+    build: !reset null
+
+  scheduler:
+    image: ${TECHIBASE_REGISTRY:-ghcr.io/installation-04}/techbase-backend:${TECHIBASE_VERSION:?TECHIBASE_VERSION is not set in .env (for example 0.0.9, or latest)}
+    build: !reset null
+
+  frontend:
+    image: ${TECHIBASE_REGISTRY:-ghcr.io/installation-04}/techbase-frontend:${TECHIBASE_VERSION:?TECHIBASE_VERSION is not set in .env (for example 0.0.9, or latest)}
+    build: !reset null

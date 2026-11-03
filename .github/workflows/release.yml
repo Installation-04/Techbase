@@ -1,35 +1,337 @@
 name: Release
 
+# Publishes a version of TechIBase as Docker images (GitHub Container Registry)
+# plus a GitHub Release with a self-contained install bundle.
+#
+# How to release (also in README, "Créer une release"):
+#   1. node scripts/bump-version.js X.Y.Z, add a "## [X.Y.Z]" section to CHANGELOG.md,
+#      merge that to main.
+#   2. Actions > Release > Run workflow on main: version X.Y.Z, publish OFF first.
+#      That rehearsal builds both images and runs the whole test suite plus the
+#      Docker smoke test, and publishes nothing.
+#   3. Run it again with publish ON. It pushes the images, then creates the
+#      vX.Y.Z tag and the GitHub Release.
+# Pushing a vX.Y.Z tag by hand does the same as step 3.
+
 on:
   push:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, exactly as in package.json (for example 0.0.9)"
+        required: true
+        type: string
+      publish:
+        description: "Publish the images, the tag and the GitHub Release (off = rehearsal: build and test only)"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      sha: ${{ steps.meta.outputs.sha }}
+      publish: ${{ steps.meta.outputs.publish }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      tags: ${{ steps.meta.outputs.tags }}
+      registry_repo: ${{ steps.meta.outputs.registry_repo }}
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0 # to prove the commit is on main
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-
-      - name: Install and build
+          node-version: 20
+      - name: Log in to GHCR (to see whether this version already exists)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Work out and check the version
+        id: meta
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
         run: |
-          npm ci
-          npm run build
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            version="${REF_NAME#v}"
+            publish=true
+          else
+            version="$INPUT_VERSION"
+            publish="$INPUT_PUBLISH"
+          fi
+          sha="$(git rev-parse HEAD)"
 
-      - name: Create GitHub Release
+          # 0 = the image exists, 1 = the registry says it does not. Any other
+          # failure (network, permissions) stops the release instead of being
+          # mistaken for "does not exist", which could overwrite a version.
+          image_exists() {
+            local output
+            if output="$(docker buildx imagetools inspect "$1" 2>&1)"; then return 0; fi
+            if echo "$output" | grep -Eqi 'not found|unknown|no such manifest'; then return 1; fi
+            echo "::error::Could not check whether $1 exists: $output"
+            exit 1
+          }
+          owner="$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+
+          node -e 'const { isSemver } = require("./scripts/release-lib"); process.exit(isSemver(process.argv[1]) ? 0 : 1)' "$version" \
+            || { echo "::error::\"$version\" is not a valid version (expected MAJOR.MINOR.PATCH, for example 0.0.9)"; exit 1; }
+
+          current="$(node scripts/bump-version.js)" \
+            || { echo "::error::The version files disagree; run node scripts/bump-version.js to see which"; exit 1; }
+          if [ "$current" != "$version" ]; then
+            echo "::error::Releasing $version but package.json says $current on this commit. Bump the version and merge it first."
+            exit 1
+          fi
+          node scripts/release-notes.js "$version" > /dev/null \
+            || { echo "::error::CHANGELOG.md needs a non-empty \"## [$version]\" section"; exit 1; }
+
+          if [ "$publish" = "true" ]; then
+            git merge-base --is-ancestor "$sha" origin/main \
+              || { echo "::error::Only commits on main can be published (this one is not)"; exit 1; }
+            if [ "$EVENT" != "push" ] && git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null 2>&1; then
+              echo "::error::The tag v$version already exists; versions are never re-published"; exit 1
+            fi
+            for image in backend frontend; do
+              if image_exists "ghcr.io/$owner/techbase-$image:$version"; then
+                echo "::error::ghcr.io/$owner/techbase-$image:$version already exists; versions are never overwritten"; exit 1
+              fi
+            done
+          fi
+
+          # Tags: the exact version always; X.Y and latest only for a stable version (no -rc suffix).
+          tags="$version sha-${sha:0:7}"
+          prerelease="$(node -p 'require("./scripts/release-lib").isPrerelease(process.argv[1])' "$version")"
+          if node -e 'const { isStable } = require("./scripts/release-lib"); process.exit(isStable(process.argv[1]) ? 0 : 1)' "$version"; then
+            tags="$tags ${version%.*} latest"
+          fi
+
+          {
+            echo "version=$version"
+            echo "sha=$sha"
+            echo "publish=$publish"
+            echo "prerelease=$prerelease"
+            echo "tags=$tags"
+            echo "registry_repo=ghcr.io/$owner"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Release $version"
+            echo "- commit \`$sha\`"
+            echo "- publish: **$publish** $([ "$publish" = true ] || echo '(rehearsal: build and test only)')"
+            echo "- image tags: \`$tags\`"
+            echo "- GitHub pre-release: $prerelease"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # The whole CI suite (tests on a real Postgres, bundle checks, Docker stack) on the exact commit.
+  ci:
+    needs: prepare
+    uses: ./.github/workflows/ci.yml
+
+  # Build the two images as they will be shipped, start the stack from them
+  # through docker-compose.release.yml (our images are neither rebuilt nor pulled), and run the
+  # same end-to-end smoke test. Runs for rehearsals too.
+  build-test:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      REGISTRY_REPO: ${{ needs.prepare.outputs.registry_repo }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: actions/setup-node@v4 # the smoke script parses JSON with node
+        with:
+          node-version: 20
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          load: true
+          tags: ${{ needs.prepare.outputs.registry_repo }}/techbase-backend:${{ needs.prepare.outputs.version }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+      - name: Build the frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          load: true
+          tags: ${{ needs.prepare.outputs.registry_repo }}/techbase-frontend:${{ needs.prepare.outputs.version }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+      - name: Configure the stack the way the release bundle does
+        run: |
+          cp .env.example .env
+          sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 16)/" .env
+          sed -i "s/^GOOGLE_CLIENT_ID=.*/GOOGLE_CLIENT_ID=ci-client-id/" .env
+          sed -i "s/^GOOGLE_CLIENT_SECRET=.*/GOOGLE_CLIENT_SECRET=ci-client-secret/" .env
+          sed -i "s/^# TECHIBASE_VERSION=.*/TECHIBASE_VERSION=$VERSION/" .env
+          sed -i "s/^# COMPOSE_FILE=/COMPOSE_FILE=/" .env
+          echo "TECHIBASE_REGISTRY=$REGISTRY_REPO" >> .env
+          grep -q "^TECHIBASE_VERSION=$VERSION\$" .env
+          grep -q '^COMPOSE_FILE=docker-compose.yml:docker-compose.release.yml$' .env
+      - name: The release stack runs the images that were just built, and builds nothing
+        run: |
+          images="$(docker compose config --images | sort -u)"
+          echo "$images"
+          test "$(docker compose config | grep -c '^ *build:')" = "0"
+          echo "$images" | grep -qx "$REGISTRY_REPO/techbase-backend:$VERSION"
+          echo "$images" | grep -qx "$REGISTRY_REPO/techbase-frontend:$VERSION"
+      - name: Start the stack (only the database image is pulled; ours are the ones just built)
+        run: |
+          docker compose pull db
+          docker compose up -d --pull never --wait --wait-timeout 300
+      - name: The API and the sidebar report the release version
+        run: |
+          test "$(curl -fsS http://localhost/api/health | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')" = "$VERSION"
+          curl -fsS http://localhost/ | grep -o '/assets/index-[^"]*\.js' | head -1 | xargs -I{} curl -fsS http://localhost{} | grep -qF "\"$VERSION\""
+      - name: Smoke test
+        run: scripts/docker-smoke.sh --restart
+        env:
+          GOOGLE_CLIENT_ID: ci-client-id
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail 100
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  publish:
+    needs: [prepare, ci, build-test]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [backend, frontend]
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      SHA: ${{ needs.prepare.outputs.sha }}
+      TAGS: ${{ needs.prepare.outputs.tags }}
+      IMAGE: ${{ needs.prepare.outputs.registry_repo }}/techbase-${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: List the image references to push
+        id: refs
+        run: |
+          {
+            echo 'list<<EOF'
+            for tag in $TAGS; do echo "$IMAGE:$tag"; done
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: Build and push (amd64 + arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.image }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: ${{ steps.refs.outputs.list }}
+          labels: |
+            org.opencontainers.image.title=techbase-${{ matrix.image }}
+            org.opencontainers.image.description=TechIBase ${{ matrix.image }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.prepare.outputs.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+      - name: What was published
+        run: |
+          {
+            echo "### $IMAGE"
+            echo '```'
+            docker buildx imagetools inspect "$IMAGE:$VERSION"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      REGISTRY_REPO: ${{ needs.prepare.outputs.registry_repo }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Release notes and install bundle
+        run: |
+          set -euo pipefail
+          {
+            node scripts/release-notes.js "$VERSION"
+            echo
+            echo "## Images Docker"
+            echo
+            echo '```bash'
+            echo "docker pull $REGISTRY_REPO/techbase-backend:$VERSION"
+            echo "docker pull $REGISTRY_REPO/techbase-frontend:$VERSION"
+            echo '```'
+            echo
+            echo "Pour installer sans cloner le dépôt : téléchargez \`techibase-v$VERSION-docker.tar.gz\`, décompressez-le, lancez \`./install.sh\` (voir le README, « Installer depuis les images publiées »)."
+          } > release-notes.md
+
+          bundle="techibase-v$VERSION-docker"
+          mkdir -p "$bundle/backend/db" "$bundle/scripts"
+          cp docker-compose.yml docker-compose.release.yml docker-compose.https.yml Caddyfile install.sh "$bundle/"
+          cp backend/db/init.sql "$bundle/backend/db/"
+          cp scripts/docker-smoke.sh "$bundle/scripts/"
+          cp .env.example "$bundle/.env.example"
+          sed -i -e "s/^# TECHIBASE_VERSION=.*/TECHIBASE_VERSION=$VERSION/" -e "s/^# COMPOSE_FILE=/COMPOSE_FILE=/" "$bundle/.env.example"
+          if [ "$REGISTRY_REPO" != "ghcr.io/installation-04" ]; then echo "TECHIBASE_REGISTRY=$REGISTRY_REPO" >> "$bundle/.env.example"; fi
+          grep -q "^TECHIBASE_VERSION=$VERSION\$" "$bundle/.env.example"
+          grep -q '^COMPOSE_FILE=docker-compose.yml:docker-compose.release.yml$' "$bundle/.env.example"
+          tar czf "$bundle.tar.gz" "$bundle"
+          tar tzf "$bundle.tar.gz"
+      - name: Create the GitHub Release (and the tag, when it does not exist yet)
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
-          generate_release_notes: true
-          files: |
-            dist/**
-            build/**
-
+          tag_name: v${{ needs.prepare.outputs.version }}
+          target_commitish: ${{ needs.prepare.outputs.sha }}
+          name: TechIBase v${{ needs.prepare.outputs.version }}
+          body_path: release-notes.md
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
+          files: techibase-v${{ needs.prepare.outputs.version }}-docker.tar.gz
+          fail_on_unmatched_files: true
