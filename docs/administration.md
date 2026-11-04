@@ -1,17 +1,37 @@
 # Administration
 
+Les administrateurs ont une entrée **Administration** dans le menu, avec trois onglets : **Système** (version et mises à jour), **Utilisateurs** (les comptes) et **Santé** (l'état du serveur).
+
+## Système : version et mises à jour
+
+![Onglet Système](images/24-admin-systeme.png)
+
+- La **version installée**, la **dernière version publiée** sur GitHub et un état : « À jour », « Mise à jour disponible » ou, si le serveur ne peut pas joindre GitHub, « Version la plus récente inconnue ».
+- Le **type d'installation** (conteneur unique, quatre conteneurs, code source ou Netlify) et, pour une installation par images publiées, la version fixée dans `.env`.
+- Les **notes de la version** la plus récente et les **commandes à lancer** pour mettre à jour, adaptées à votre type d'installation (voir aussi [Versions et mises à jour](versions-et-mises-a-jour.md)).
+
+La vérification interroge l'API publique de GitHub depuis le serveur, au plus une fois par heure, et n'envoie aucune information sur votre installation. Pour la désactiver (serveur sans accès Internet), mettez `UPDATE_CHECK=false` dans `.env`.
+
+## Santé : l'état du serveur
+
+![Onglet Santé](images/25-admin-sante.png)
+
+La base de données est-elle joignable (et en combien de temps), depuis quand le serveur tourne, quand les tâches quotidiennes ont passé pour la dernière fois, si les courriels et la connexion SSO sont configurés, le nombre d'utilisateurs, de clients et de bons de service ouverts, la taille des documents téléversés et l'espace disque libre.
+
+## Les comptes
+
 ## Les comptes
 
 Il existe deux rôles :
 
 | Rôle | Peut |
 |---|---|
-| **Administrateur** | tout ce que fait un utilisateur, plus : gérer les comptes (page **Utilisateurs**), supprimer des clients, recevoir le résumé quotidien par courriel |
+| **Administrateur** | tout ce que fait un utilisateur, plus : gérer les comptes (onglet **Utilisateurs**), supprimer des clients, recevoir le résumé quotidien par courriel |
 | **Utilisateur** | consulter et modifier les données des clients, les bons de service, les procédures, le coffre-fort et les documents |
 
 ![Gestion des utilisateurs](images/20-utilisateurs.png)
 
-Depuis **Utilisateurs** (visible aux administrateurs seulement) :
+Depuis l'onglet **Utilisateurs** (visible aux administrateurs seulement) :
 
 - **+ Nouvel utilisateur** crée un compte : nom, courriel, mot de passe (8 caractères minimum) et rôle.
 - **Modifier** change le nom, le courriel ou le rôle. Pour **réinitialiser le mot de passe** d'un utilisateur, saisissez-en un nouveau dans le formulaire ; laissé vide, le mot de passe actuel est conservé.

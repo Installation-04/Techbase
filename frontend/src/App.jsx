@@ -10,7 +10,7 @@ const Clients = lazy(() => import('./pages/Clients'));
 const ClientDetail = lazy(() => import('./pages/ClientDetail'));
 const WorkOrders = lazy(() => import('./pages/WorkOrders'));
 const Procedures = lazy(() => import('./pages/Procedures'));
-const Users = lazy(() => import('./pages/Users'));
+const Admin = lazy(() => import('./pages/Admin'));
 
 export default function App() {
   return (
@@ -69,15 +69,16 @@ export default function App() {
         }
       />
       <Route
-        path="/users"
+        path="/admin"
         element={
           <ProtectedRoute adminOnly>
             <Layout>
-              <Users />
+              <Admin />
             </Layout>
           </ProtectedRoute>
         }
       />
+      <Route path="/users" element={<Navigate to="/admin?tab=users" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>

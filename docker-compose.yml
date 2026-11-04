@@ -54,6 +54,9 @@ services:
       <<: *common-env
       JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is not set in .env - on a new install run ./install.sh, on an existing install keep your current value because changing it makes stored passwords unreadable}"
       UPLOADS_DIR: /app/uploads
+      DEPLOY_MODE: multi
+      TECHIBASE_VERSION: ${TECHIBASE_VERSION:-}
+      UPDATE_CHECK: ${UPDATE_CHECK:-true}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
       FRONTEND_URL: ${FRONTEND_URL:-}
