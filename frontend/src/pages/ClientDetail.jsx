@@ -76,6 +76,14 @@ function GenericModal({ title, fields, initialData, onClose, onSave }) {
 }
 
 // ---- Equipment Tab ----
+const MAINTENANCE_CYCLES = [
+  { value: '', label: 'Aucun (ponctuel)' },
+  { value: '1', label: 'Tous les mois' },
+  { value: '3', label: 'Tous les trimestres' },
+  { value: '6', label: 'Tous les semestres' },
+  { value: '12', label: 'Tous les ans' },
+  { value: '24', label: 'Tous les 2 ans' },
+];
 function EquipmentTab({ clientId }) {
   const [items, setItems] = useState([]);
   const [modal, setModal] = useState(null);
@@ -94,6 +102,7 @@ function EquipmentTab({ clientId }) {
     { key: 'installation_date', label: 'Date installation', type: 'date' },
     { key: 'last_maintenance', label: 'Dernière maintenance', type: 'date' },
     { key: 'next_maintenance', label: 'Prochaine maintenance', type: 'date' },
+    { key: 'maintenance_interval_months', label: 'Cycle de maintenance', type: 'select', options: MAINTENANCE_CYCLES },
     { key: 'status', label: 'Statut', type: 'select', options: [{ value: 'active', label: 'Actif' }, { value: 'inactive', label: 'Inactif' }, { value: 'maintenance', label: 'En maintenance' }] },
     { key: 'notes', label: 'Notes', type: 'textarea' },
   ];
@@ -109,7 +118,7 @@ function EquipmentTab({ clientId }) {
             <div>
               <p className="font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">{item.type} {item.serial_number && `· S/N: ${item.serial_number}`}</p>
-              {item.next_maintenance && <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Prochaine maintenance: {formatDate(item.next_maintenance)}</p>}
+              {item.next_maintenance && <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Prochaine maintenance: {formatDate(item.next_maintenance)}{item.maintenance_interval_months && ` · cycle : ${item.maintenance_interval_months} mois`}</p>}
             </div>
             <div className="flex gap-2">
               <button onClick={() => setModal(item)} className="px-3 py-1 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Modifier</button>
