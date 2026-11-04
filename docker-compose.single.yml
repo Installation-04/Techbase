@@ -1,0 +1,59 @@
+# TechIBase all in one container: web app, API, scheduler and PostgreSQL in a
+# single image with one data volume (/data: database + uploaded documents).
+#
+# First install:  ./install.sh   (creates .env with a random JWT_SECRET, builds or pulls, starts)
+# Afterwards:     docker compose up -d
+#
+# Backup:   docker compose exec -T techibase techibase-backup > techibase-$(date +%F).tar.gz
+# Restore:  docker compose exec -T techibase techibase-restore < techibase-2026-01-01.tar.gz && docker compose restart
+#
+# To use an external PostgreSQL instead of the bundled one, set DATABASE_URL
+# in .env. (DB_HOST and DB_PORT are deliberately NOT passed on: .env.example carries
+# DB_HOST=db for the four-container stack, which would otherwise be mistaken for an
+# external database here.)
+services:
+  techibase:
+    build: .
+    image: techibase
+    restart: unless-stopped
+    init: false # the image runs tini itself
+    stop_grace_period: 40s # PostgreSQL gets time to shut down cleanly
+    ports:
+      - "${HTTP_PORT:-26591}:80"
+    environment:
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is not set in .env - on a new install run ./install.sh, on an existing install keep your current value because changing it makes stored passwords unreadable}"
+      NODE_ENV: ${NODE_ENV:-production}
+      TZ: ${TZ:-UTC}
+      DATABASE_URL: ${DATABASE_URL:-}
+      DB_NAME: ${DB_NAME:-techbase}
+      DB_USER: ${DB_USER:-techbase}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      SCHEDULER_TIME: ${SCHEDULER_TIME:-06:00}
+      RUN_ON_START: ${RUN_ON_START:-false}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-TechIBase <onboarding@resend.dev>}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      FRONTEND_URL: ${FRONTEND_URL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
+      ACUMATICA_BASE_URL: ${ACUMATICA_BASE_URL:-}
+      ACUMATICA_USERNAME: ${ACUMATICA_USERNAME:-}
+      ACUMATICA_PASSWORD: ${ACUMATICA_PASSWORD:-}
+      ACUMATICA_COMPANY: ${ACUMATICA_COMPANY:-}
+      ACUMATICA_BRANCH: ${ACUMATICA_BRANCH:-}
+      ACUMATICA_ENDPOINT_NAME: ${ACUMATICA_ENDPOINT_NAME:-Default}
+      ACUMATICA_ENDPOINT_VERSION: ${ACUMATICA_ENDPOINT_VERSION:-24.200.001}
+    volumes:
+      - techibase_data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  techibase_data:

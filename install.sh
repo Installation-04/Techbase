@@ -3,6 +3,23 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+# Nouvelle installation : un seul conteneur (application, API, planificateur et base
+# de données) par défaut ; --multi garde les quatre conteneurs séparés.
+MODE=single
+for arg in "$@"; do
+  case "$arg" in
+    --multi) MODE=multi ;;
+    --single) MODE=single ;;
+    -h|--help)
+      echo "Usage : ./install.sh [--single | --multi]"
+      echo "  --single  un seul conteneur (par défaut pour une nouvelle installation)"
+      echo "  --multi   quatre conteneurs séparés : db, backend, scheduler, frontend"
+      echo "Une installation existante (fichier .env présent) garde son mode."
+      exit 0 ;;
+    *) echo "Option inconnue : $arg (voir --help)" >&2; exit 2 ;;
+  esac
+done
+
 echo "=== Installation de TechIBase ==="
 
 # 1. Vérifier que Docker et Docker Compose sont disponibles
@@ -36,14 +53,41 @@ if [ ! -f .env ]; then
   else
     echo "Avertissement : openssl introuvable, les valeurs par défaut de .env.example sont conservées. Pensez à les modifier avant un déploiement en production."
   fi
+
+  # Choix du mode (seulement ici : un .env existant n'est jamais modifié).
+  if [ "$MODE" = single ]; then
+    if grep -qE '^COMPOSE_FILE=.*docker-compose\.release\.yml' .env; then
+      COMPOSE_VALUE="docker-compose.single.yml:docker-compose.single.release.yml"
+    else
+      COMPOSE_VALUE="docker-compose.single.yml"
+    fi
+    if grep -qE '^COMPOSE_FILE=' .env; then
+      sed -i.bak "s#^COMPOSE_FILE=.*#COMPOSE_FILE=${COMPOSE_VALUE}#" .env && rm -f .env.bak
+    else
+      printf '\nCOMPOSE_FILE=%s\n' "$COMPOSE_VALUE" >> .env
+    fi
+    echo "Mode : un seul conteneur (COMPOSE_FILE=${COMPOSE_VALUE})."
+  fi
 else
   echo "Fichier .env déjà présent, conservé tel quel."
+fi
+
+# Le mode effectif est celui que décrit le .env (un .env existant d'avant les
+# images tout-en-un reste en quatre conteneurs).
+if grep -qE '^COMPOSE_FILE=.*docker-compose\.single\.yml' .env; then
+  MODE=single
+else
+  MODE=multi
 fi
 
 # 3. Construire (ou télécharger, avec le paquet de release) et démarrer les conteneurs (db, backend, scheduler, frontend).
 # --wait attend que chaque service soit « healthy » et échoue sinon : on
 # n'annonce donc « prêt » que si l'application répond réellement.
-echo "Démarrage des conteneurs (db, backend, scheduler, frontend) ; les images sont construites ou téléchargées au besoin..."
+if [ "$MODE" = single ]; then
+  echo "Démarrage de TechIBase (un seul conteneur) ; l'image est construite ou téléchargée au besoin..."
+else
+  echo "Démarrage des conteneurs (db, backend, scheduler, frontend) ; les images sont construites ou téléchargées au besoin..."
+fi
 if ! docker compose up --build -d --wait --wait-timeout 240; then
   echo ""
   echo "Erreur : un service n'a pas démarré correctement. État et derniers journaux :" >&2

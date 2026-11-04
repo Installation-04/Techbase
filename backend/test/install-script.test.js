@@ -27,15 +27,16 @@ test('the workflows do not assume the web app is on port 80', () => {
 });
 
 // Runs the real install.sh in a temp directory with a stubbed docker, so nothing starts.
-function runInstaller(envFile) {
+function runInstaller(envFile, { args = [], example } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'techibase-install-'));
   fs.copyFileSync(path.join(ROOT, 'install.sh'), path.join(dir, 'install.sh'));
-  fs.copyFileSync(path.join(ROOT, '.env.example'), path.join(dir, '.env.example'));
+  if (example === undefined) fs.copyFileSync(path.join(ROOT, '.env.example'), path.join(dir, '.env.example'));
+  else fs.writeFileSync(path.join(dir, '.env.example'), example);
   const shim = path.join(dir, 'shim');
   fs.mkdirSync(shim);
   fs.writeFileSync(path.join(shim, 'docker'), '#!/bin/sh\necho "$*" >> "$(dirname "$0")/../docker.log"\nexit 0\n', { mode: 0o755 });
   if (envFile !== undefined) fs.writeFileSync(path.join(dir, '.env'), envFile);
-  const result = spawnSync('bash', [path.join(dir, 'install.sh')], {
+  const result = spawnSync('bash', [path.join(dir, 'install.sh'), ...args], {
     cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${shim}:${process.env.PATH}` },
   });
   return { dir, out: result.stdout + result.stderr, code: result.status };
@@ -111,6 +112,65 @@ test('the smoke test targets the port written in .env', skip, async () => {
     assert.ok(requests.includes('/api/health'), 'the health check reached the port from .env');
   } finally {
     await new Promise(resolve => server.close(resolve));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---- one container (default) or four ----
+
+test('a new install runs as ONE container and records that in COMPOSE_FILE', skip, () => {
+  const { dir, out, code } = runInstaller();
+  try {
+    assert.equal(code, 0, out);
+    assert.match(read(dir, '.env'), /^COMPOSE_FILE=docker-compose\.single\.yml$/m);
+    assert.match(out, /un seul conteneur/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a release-bundle install gets the published all-in-one image', skip, () => {
+  const bundleExample = read(ROOT, '.env.example') + '\nTECHIBASE_VERSION=0.0.10\nCOMPOSE_FILE=docker-compose.yml:docker-compose.release.yml\n';
+  const { dir, out, code } = runInstaller(undefined, { example: bundleExample });
+  try {
+    assert.equal(code, 0, out);
+    const env = read(dir, '.env');
+    assert.match(env, /^COMPOSE_FILE=docker-compose\.single\.yml:docker-compose\.single\.release\.yml$/m);
+    assert.equal((env.match(/^COMPOSE_FILE=/gm) || []).length, 1, 'COMPOSE_FILE appears once');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--multi keeps the four-container stack', skip, () => {
+  const { dir, out, code } = runInstaller(undefined, { args: ['--multi'] });
+  try {
+    assert.equal(code, 0, out);
+    assert.doesNotMatch(read(dir, '.env'), /^COMPOSE_FILE=/m);
+    assert.match(out, /db, backend, scheduler, frontend/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an existing four-container install is never switched to the single container', skip, () => {
+  const existing = 'JWT_SECRET=keep-me-0123456789abcdef0123456789abcdef\nDB_PASSWORD=keep-too\nCOMPOSE_FILE=docker-compose.yml:docker-compose.release.yml\nTECHIBASE_VERSION=0.0.9\n';
+  const { dir, out, code } = runInstaller(existing);
+  try {
+    assert.equal(code, 0, out);
+    assert.equal(read(dir, '.env'), existing, '.env is untouched');
+    assert.match(out, /db, backend, scheduler, frontend/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('install.sh rejects an unknown option', skip, () => {
+  const { dir, out, code } = runInstaller(undefined, { args: ['--bogus'] });
+  try {
+    assert.equal(code, 2);
+    assert.match(out, /Option inconnue/);
+  } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

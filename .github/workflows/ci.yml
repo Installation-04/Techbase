@@ -69,6 +69,50 @@ jobs:
   # way install.sh does, and run the end-to-end smoke test (nginx, uploads as
   # the non-root user, the scheduler container, settings passthrough, and data
   # surviving a restart). Keeps "everything runs in Docker" true over time.
+  # The all-in-one image: web, API, scheduler and PostgreSQL in one container.
+  docker-single:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4 # the smoke script parses JSON with node
+        with:
+          node-version: 20
+      - name: Create .env with a throwaway secret, in single-container mode
+        run: |
+          cp .env.example .env
+          sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^GOOGLE_CLIENT_ID=.*/GOOGLE_CLIENT_ID=ci-client-id/" .env
+          sed -i "s/^GOOGLE_CLIENT_SECRET=.*/GOOGLE_CLIENT_SECRET=ci-client-secret/" .env
+          echo "COMPOSE_FILE=docker-compose.single.yml" >> .env
+      - name: Compose files are valid (including the HTTPS and release overrides)
+        run: |
+          docker compose config -q
+          DOMAIN=example.com docker compose -f docker-compose.single.yml -f docker-compose.single.https.yml config -q
+          TECHIBASE_VERSION=0.0.0 docker compose -f docker-compose.single.yml -f docker-compose.single.release.yml config -q
+      - name: Build and start the all-in-one container
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: Smoke test (includes a restart that keeps the data)
+        run: scripts/docker-smoke.sh --restart
+        env:
+          GOOGLE_CLIENT_ID: ci-client-id
+      - name: The database password and data survive recreating the container
+        run: |
+          docker compose up -d --force-recreate --wait --wait-timeout 300
+          docker compose exec -T techibase techibase-backup | tar -tzf - | grep -qx db.sql
+      - name: Shuts down cleanly (PostgreSQL gets to stop before the container exits)
+        run: |
+          docker compose stop -t 40
+          test "$(docker compose ps -a --format '{{.ExitCode}}' techibase)" = "0"
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --tail 150
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
   docker-stack:
     runs-on: ubuntu-latest
     timeout-minutes: 25

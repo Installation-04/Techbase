@@ -40,7 +40,7 @@ Première publication : GitHub crée les deux paquets en privé. Dans **Packages
 - **Frontend:** React + Vite, Tailwind CSS, React Router
 - **Backend:** Node.js + Express, API REST, authentification JWT
 - **Base de données:** PostgreSQL
-- **Déploiement:** Docker Compose (4 conteneurs : base de données, API, planificateur, application web — tout tient dans Docker, HTTPS en option) ou Netlify
+- **Déploiement:** Docker — **un seul conteneur** (application web, API, planificateur et PostgreSQL ensemble, un seul volume de données ; la pile à quatre conteneurs séparés reste disponible avec `./install.sh --multi`), HTTPS en option — ou Netlify
 
 ## Démarrage rapide
 
@@ -61,7 +61,7 @@ git clone https://github.com/Installation-04/Techbase.git && cd Techbase
 ./install.sh
 ```
 
-Ce script vérifie la présence de Docker, génère un fichier `.env` avec des secrets aléatoires (JWT_SECRET, DB_PASSWORD), puis construit et démarre les conteneurs.
+Ce script vérifie la présence de Docker, génère un fichier `.env` avec des secrets aléatoires (JWT_SECRET, DB_PASSWORD), puis construit et démarre TechIBase dans un seul conteneur (`./install.sh --multi` pour la pile à quatre conteneurs ; une installation existante garde son mode).
 
 ### Installation manuelle
 
@@ -256,7 +256,7 @@ Si vous préférez héberger le backend ailleurs (Render, Railway, Fly.io…) pl
 
 ## Docker (auto-hébergé)
 
-Toute la plateforme tourne dans des conteneurs ; Netlify n'est pas nécessaire.
+Toute la plateforme tourne dans Docker ; Netlify n'est pas nécessaire. Une nouvelle installation utilise **un seul conteneur** (`docker-compose.single.yml` : nginx, API, planificateur et PostgreSQL, volume `techibase_data`) ; sauvegarde : `docker compose exec -T techibase techibase-backup > sauvegarde.tar.gz`. Les sections ci-dessous décrivent la **pile à quatre conteneurs** (`docker-compose.yml`), toujours prise en charge ; le détail des deux modes, de la migration et de la sauvegarde est dans [docs/installation.md](docs/installation.md).
 
 | Conteneur | Rôle |
 |-----------|------|
