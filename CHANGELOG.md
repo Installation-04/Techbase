@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+## [0.0.11] - Un seul conteneur
+
 - **Un seul conteneur** : l'application web (nginx), l'API, le planificateur et PostgreSQL 15 tournent maintenant ensemble dans une seule image, `ghcr.io/installation-04/techbase`, avec un seul volume de données (`/data` : base de données et documents). C'est le mode par défaut d'une **nouvelle** installation (`./install.sh`, commande rapide) ; `./install.sh --multi` garde les quatre conteneurs. Une installation existante n'est jamais changée de mode (son `.env` est conservé) et continue de se mettre à jour ; la procédure pour migrer ses données est dans docs/installation.md. Sauvegarde et restauration en une commande (`techibase-backup`, `techibase-restore`), PostgreSQL externe facultatif (`DATABASE_URL`), HTTPS en option (`docker-compose.single.https.yml`). Les releases publient l'image tout-en-un en plus des deux images existantes.
 
 ## [0.0.10] - Installation en une commande, documentation, mode sombre et port 26591
