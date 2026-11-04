@@ -1,0 +1,60 @@
+name: Wiki
+
+# Publishes docs/ to the repository's GitHub Wiki (the "Wiki" tab) after every
+# change to the documentation on main. docs/ stays the single source: edit the
+# pages there, through a pull request; never in the Wiki tab (the next run
+# overwrites it).
+#
+# One-time setup, done by a repository admin:
+#   1. Settings > General > Features > tick "Wikis".
+#   2. Open the Wiki tab and click "Create the first page", then save it (any content).
+#   3. Actions > Wiki > Run workflow (or merge any change to docs/).
+# Until then this workflow only prints a warning and succeeds.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "scripts/build-wiki.js"
+      - "scripts/sync-wiki.sh"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write # lets the workflow token push to <repo>.wiki.git
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Is the Wiki enabled and initialised?
+        id: wiki
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git ls-remote "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" > /dev/null 2>&1; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            msg="The Wiki is not available yet, so nothing was published. Enable it (Settings > General > Features > Wikis), create its first page in the Wiki tab, then re-run this workflow."
+            echo "::warning title=Wiki not published::${msg}"
+            echo "### Wiki not published" >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Publish docs/ to the Wiki
+        if: steps.wiki.outputs.ready == 'true'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --quiet "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" "${RUNNER_TEMP}/wiki"
+          scripts/sync-wiki.sh "${RUNNER_TEMP}/wiki" "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}"

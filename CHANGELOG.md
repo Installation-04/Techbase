@@ -4,6 +4,7 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- **Wiki GitHub synchronisé avec `docs/`** : un workflow publie la documentation dans l'onglet Wiki du dépôt à chaque changement de `docs/` sur `main` (noms de pages et liens adaptés, captures non dupliquées). `docs/` reste la source unique. Il faut d'abord activer les Wikis et créer une première page, une seule fois (voir `docs/versions-et-mises-a-jour.md`) ; d'ici là, le workflow n'affiche qu'un avertissement.
 - **Installation en une commande** : `curl -fsSL https://raw.githubusercontent.com/Installation-04/Techbase/main/get-techibase.sh | bash` télécharge la dernière release (ou `--version X.Y.Z`), la déploie dans `./techibase`, génère le `.env` et démarre les conteneurs à partir des images publiées. Relancer la commande met à jour une installation existante en conservant le `.env` et les données.
 - **Documentation** : un wiki dans `docs/` (installation, premiers pas, fiche client, bons de service, recherche et notifications, administration, versions et mises à jour, dépannage), illustré de captures d'écran faites sur des données fictives. Le README y renvoie et présente la nouvelle installation ; il appelle maintenant « Utilisateur » le rôle que l'interface affiche ainsi.
 - Correctif : le graphique « Interventions (6 derniers mois) » du tableau de bord dessinait toutes ses barres à la même hauteur minimale (4 px) quel que soit le nombre d'interventions ; les hauteurs sont maintenant proportionnelles au mois le plus chargé.

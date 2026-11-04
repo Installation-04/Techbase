@@ -61,3 +61,16 @@ Le workflow **Release** (`.github/workflows/release.yml`) publie les images, cr�
 4. **Première publication seulement** : GitHub crée les deux paquets en privé ; passez chacun en **Public** (Packages → le paquet → Package settings) pour que `docker pull` fonctionne sans connexion.
 
 Garde-fous : seuls les commits de `main` sont publiés ; une version déjà publiée (tag ou image) est refusée.
+
+## Pour les mainteneurs : publier la documentation dans l'onglet Wiki
+
+Les pages de `docs/` sont la **source unique** : modifiez-les par pull request. Le workflow **Wiki** (`.github/workflows/wiki.yml`) les copie dans l'onglet Wiki du dépôt à chaque changement de `docs/` sur `main` : les noms de pages et les liens sont adaptés au format du Wiki, et les captures restent celles du dépôt. Ne modifiez jamais le Wiki à la main : la prochaine synchronisation écraserait vos changements.
+
+**À faire une seule fois** (administrateur du dépôt) :
+
+1. *Settings → General → Features* : cochez **Wikis**.
+2. Dans l'onglet **Wiki**, cliquez sur *Create the first page* et enregistrez (le contenu n'importe pas, il sera remplacé).
+3. *Actions → Wiki → Run workflow*.
+
+Tant que ces étapes ne sont pas faites, le workflow affiche un avertissement et ne publie rien.
+
