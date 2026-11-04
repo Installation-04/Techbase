@@ -111,6 +111,16 @@ if [ "$SINGLE" = 1 ]; then
   tar -tzf "$TMP/backup.tar.gz" > "$TMP/backup.list" || fail "backup is not a valid .tar.gz"
   grep -qx 'db.sql' "$TMP/backup.list" && grep -q '^uploads/' "$TMP/backup.list" || fail "backup lacks db.sql or uploads/"
   pass
+
+  step "techibase-restore puts the database back as it was at the backup"
+  LATE_ID="$(api -X POST "$BASE/api/clients" -H 'Content-Type: application/json' -d "{\"name\":\"Added after the backup $TAG\"}" | json j.id)"
+  [ -n "$LATE_ID" ] || fail "could not create the late client"
+  $COMPOSE exec -T techibase techibase-restore < "$TMP/backup.tar.gz" >"$TMP/restore.log" 2>&1 || { cat "$TMP/restore.log"; fail "techibase-restore failed"; }
+  LATE="$(api "$BASE/api/clients" | json "j.filter(c => c.name === 'Added after the backup $TAG').length")"
+  KEPT="$(api "$BASE/api/clients" | json "j.filter(c => c.name === 'Smoke Client').length")"
+  [ "$LATE" = "0" ] && [ "$KEPT" -ge 1 ] || fail "after the restore: late client present=$LATE, original clients=$KEPT"
+  api -o "$TMP/big.restored" "$BASE/api/clients/$CLIENT_ID/documents/$DOC_ID/download"
+  cmp -s "$TMP/big.bin" "$TMP/big.restored" && pass || fail "the document is not intact after the restore"
 fi
 
 step "scheduler job creates one preventive work order"

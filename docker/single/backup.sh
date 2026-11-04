@@ -8,6 +8,10 @@
 # vault passwords are unreadable) somewhere other than this server.
 set -euo pipefail
 
+# The entrypoint records the effective database settings (generated password, bundled host);
+# `docker compose exec` does not inherit them, and .env may still say DB_PASSWORD=changeme.
+if [ -f /run/techibase.env ]; then set -a; . /run/techibase.env; set +a; fi
+
 DATA_DIR="${DATA_DIR:-/data}"
 UPLOADS_DIR="${UPLOADS_DIR:-$DATA_DIR/uploads}"
 WORK="$(mktemp -d)"
