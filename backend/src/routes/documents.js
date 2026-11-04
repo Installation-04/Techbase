@@ -153,4 +153,7 @@ router.delete('/clients/:clientId/documents/:id', authenticate, async (req, res)
   }
 });
 
+// Shared with the service-report route, which stores generated PDFs the same way.
+router.uploadsDir = uploadsDir;
+
 module.exports = router;

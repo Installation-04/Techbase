@@ -136,6 +136,22 @@ CREATE TABLE IF NOT EXISTS work_orders (
   CONSTRAINT work_orders_priority_check CHECK (priority IN ('low', 'medium', 'high', 'urgent'))
 );
 
+CREATE TABLE IF NOT EXISTS service_reports (
+  id SERIAL PRIMARY KEY,
+  work_order_id INTEGER NOT NULL UNIQUE REFERENCES work_orders(id) ON DELETE CASCADE,
+  work_done TEXT,
+  parts_used TEXT,
+  time_spent_minutes INTEGER,
+  observations TEXT,
+  signer_name VARCHAR(255),
+  signature BYTEA,
+  signed_at TIMESTAMP,
+  document_id INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS notifications (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

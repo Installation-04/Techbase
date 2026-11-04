@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- **Rapports d'intervention signés (PDF)** : depuis un bon de service, le technicien rédige un rapport (travaux effectués, pièces, temps passé, observations), le client signe à l'écran (zone de signature tactile ou souris, image PNG limitée à 64 Ko et vérifiée côté serveur), puis l'application génère un PDF (en-tête, client, bon de service, rapport, signature, date) à télécharger ou à joindre aux documents du client. Réservé à l'administrateur, au technicien assigné et au créateur du bon. Nouvelle table `service_reports` ; nouvelle dépendance `pdfkit` (JavaScript pur). Le nom en en-tête se règle avec `COMPANY_NAME` (par défaut « TechIBase »). La génération du PDF n'est pas disponible sur le déploiement Netlify (réponse 501) ; la rédaction et la signature y fonctionnent.
+
 ## [0.0.14] - Mises à jour en un clic (publication corrigée)
 
 - **La version 0.0.13 n'a pas été publiée** : la construction de l'image de l'interface s'est bloquée sous émulation ; seules trois de ses images existent sur le registre, sans étiquette ni release GitHub. Cette version 0.0.14 contient tout ce que devait contenir la 0.0.13 (mises à jour en un clic, ci-dessous).
