@@ -4,10 +4,15 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
-- Les images multi-architectures sont construites sans émulation pour l'étape de construction de l'interface (npm et Vite tournent sur l'architecture native du serveur de construction) : une publication pouvait rester bloquée pendant des dizaines de minutes sous émulation QEMU (version 0.0.10).
-## [0.0.13] - Mises à jour en un clic
+## [0.0.14] - Mises à jour en un clic (publication corrigée)
 
+- **La version 0.0.13 n'a pas été publiée** : la construction de l'image de l'interface s'est bloquée sous émulation ; seules trois de ses images existent sur le registre, sans étiquette ni release GitHub. Cette version 0.0.14 contient tout ce que devait contenir la 0.0.13 (mises à jour en un clic, ci-dessous).
 - **Mises à jour en un clic (facultatif)** : un nouveau conteneur « updater » (image `ghcr.io/installation-04/techbase-updater`) permet de mettre à jour TechIBase depuis l'onglet Système du panneau d'administration : sauvegarde d'abord, changement de `TECHIBASE_VERSION`, téléchargement et redémarrage, vérification, **retour automatique** à l'ancienne version si la nouvelle ne démarre pas, et bouton « Revenir à vX.Y.Z ». Désactivé par défaut ; activé par `./install.sh --with-updater` ; réservé aux installations par images publiées. Il reçoit l'accès au socket Docker (équivalent à root sur le serveur) : il est isolé, protégé par un secret, n'accepte que trois actions fixes et l'administrateur doit retaper son mot de passe. Chaque demande et son résultat sont inscrits dans un journal d'audit (`audit_log`). Testé de bout en bout avec Docker réel en CI (`scripts/updater-e2e.sh`).
+- Les images multi-architectures sont construites sans émulation pour l'étape de construction de l'interface (npm et Vite tournent sur l'architecture native du serveur de construction) : une publication pouvait rester bloquée pendant des dizaines de minutes sous émulation QEMU (version 0.0.10).
+
+## [0.0.13] - Non publiée
+
+Cette version n'a pas été publiée (voir 0.0.14, qui contient ses changements).
 ## [0.0.12] - Panneau d'administration
 
 - **Panneau d'administration** : une entrée **Administration** (administrateurs seulement) avec trois onglets. **Système** : version installée, dernière version publiée sur GitHub avec ses notes, type d'installation et commandes de mise à jour adaptées. **Utilisateurs** : la gestion des comptes, qui était la page « Utilisateurs » (`/users` redirige vers l'onglet). **Santé** : base de données, durée de fonctionnement, dernier passage des tâches quotidiennes, courriels et SSO, nombre de données, documents et espace disque. La vérification de version peut être désactivée avec `UPDATE_CHECK=false`. Nouvelle table `app_status` (créée automatiquement).
