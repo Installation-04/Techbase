@@ -2,7 +2,7 @@
 
 ## Se connecter
 
-Ouvrez l'adresse de votre TechIBase (par exemple `http://localhost`). Entrez votre courriel et votre mot de passe, puis **Se connecter**.
+Ouvrez l'adresse de votre TechIBase (par défaut `http://localhost:26591`, ou `http://<adresse-du-serveur>:26591`). Entrez votre courriel et votre mot de passe, puis **Se connecter**.
 
 ![Écran de connexion](images/01-connexion.png)
 

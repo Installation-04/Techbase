@@ -205,8 +205,9 @@ jobs:
           docker compose up -d --pull never --wait --wait-timeout 300
       - name: The API and the sidebar report the release version
         run: |
-          test "$(curl -fsS http://localhost/api/health | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')" = "$VERSION"
-          curl -fsS http://localhost/ | grep -o '/assets/index-[^"]*\.js' | head -1 | xargs -I{} curl -fsS http://localhost{} | grep -qF "\"$VERSION\""
+          PORT="$(grep -E '^HTTP_PORT=' .env | tail -n 1 | cut -d= -f2)"
+          test "$(curl -fsS "http://localhost:${PORT}/api/health" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')" = "$VERSION"
+          curl -fsS "http://localhost:${PORT}/" | grep -o '/assets/index-[^"]*\.js' | head -1 | xargs -I{} curl -fsS "http://localhost:${PORT}{}" | grep -qF "\"$VERSION\""
       - name: Smoke test
         run: scripts/docker-smoke.sh --restart
         env:
