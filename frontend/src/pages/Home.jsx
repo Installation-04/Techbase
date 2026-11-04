@@ -11,17 +11,17 @@ const CHART_BAR_MAX_PX = 96;
 
 function StatTile({ label, value, tone = 'default', onClick }) {
   const toneClasses = {
-    default: 'text-gray-900',
-    warning: value > 0 ? 'text-orange-600' : 'text-gray-900',
-    danger: value > 0 ? 'text-red-600' : 'text-gray-900',
+    default: 'text-gray-900 dark:text-gray-100',
+    warning: value > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-gray-100',
+    danger: value > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100',
   };
   return (
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-left hover:shadow-md transition-shadow disabled:cursor-default"
+      className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5 text-left hover:shadow-md transition-shadow disabled:cursor-default"
     >
-      <p className="text-xs text-gray-400 uppercase tracking-wider">{label}</p>
+      <p className="text-xs text-gray-400 dark:text-gray-400 uppercase tracking-wider">{label}</p>
       <p className={`text-3xl font-bold mt-1 ${toneClasses[tone]}`}>{value}</p>
     </button>
   );
@@ -51,8 +51,8 @@ export default function Home() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Bienvenue sur TechIBase</h1>
-        <p className="text-gray-500 mt-1">Bonjour, {user?.name} 👋</p>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Bienvenue sur TechIBase</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Bonjour, {user?.name} 👋</p>
       </div>
 
       <div className="mb-8">
@@ -69,29 +69,29 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-4">Bons de service par statut</h2>
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Bons de service par statut</h2>
               <div className="space-y-2">
                 {STATUS_ORDER.map(status => {
                   const count = summary.workOrdersByStatus[status] || 0;
                   const total = Object.values(summary.workOrdersByStatus).reduce((a, b) => a + b, 0) || 1;
                   return (
                     <div key={status} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 w-20 shrink-0">{STATUS_LABELS[status]}</span>
-                      <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 w-20 shrink-0">{STATUS_LABELS[status]}</span>
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
                         <div className="bg-blue-500 h-full rounded-full" style={{ width: `${(count / total) * 100}%` }} />
                       </div>
-                      <span className="text-xs text-gray-700 font-medium w-6 text-right">{count}</span>
+                      <span className="text-xs text-gray-700 dark:text-gray-200 font-medium w-6 text-right">{count}</span>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-4">Interventions (6 derniers mois)</h2>
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Interventions (6 derniers mois)</h2>
               {summary.interventionsByMonth.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-8">Aucune intervention enregistrée</p>
+                <p className="text-center text-gray-400 dark:text-gray-400 text-sm py-8">Aucune intervention enregistrée</p>
               ) : (
                 <div className="flex items-end gap-2 h-32">
                   {summary.interventionsByMonth.map(m => (
@@ -103,7 +103,7 @@ export default function Home() {
                         style={{ height: m.count > 0 ? `${Math.max(4, Math.round((m.count / maxMonthCount) * CHART_BAR_MAX_PX))}px` : 0 }}
                         title={`${m.count} intervention(s)`}
                       />
-                      <span className="text-[10px] text-gray-400">{m.month.slice(5)}</span>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-400">{m.month.slice(5)}</span>
                     </div>
                   ))}
                 </div>
@@ -113,12 +113,12 @@ export default function Home() {
         </>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800">Clients récents</h2>
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Clients récents</h2>
         </div>
         {recentClients.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">
+          <div className="p-8 text-center text-gray-400 dark:text-gray-400">
             <p>Aucun client pour le moment.</p>
             <button
               onClick={() => navigate('/clients')}
@@ -128,30 +128,30 @@ export default function Home() {
             </button>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 dark:divide-gray-800">
             {recentClients.map(client => (
               <button
                 key={client.id}
                 onClick={() => navigate(`/clients/${client.id}`)}
-                className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors flex items-center justify-between"
+                className="w-full text-left px-6 py-4 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-between"
               >
                 <div>
-                  <p className="font-medium text-gray-900">{client.name}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{client.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {client.contract_number && `N° ${client.contract_number}`}
                     {client.manager && ` · ${client.manager}`}
                   </p>
                 </div>
-                <span className="text-gray-400">→</span>
+                <span className="text-gray-400 dark:text-gray-400">→</span>
               </button>
             ))}
           </div>
         )}
         {recentClients.length > 0 && (
-          <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
+          <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800">
             <button
               onClick={() => navigate('/clients')}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
             >
               Voir tous les clients →
             </button>

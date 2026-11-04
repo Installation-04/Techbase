@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Dark mode: native widgets (date pickers, scrollbars, select menus) and form fields.
+   :where() keeps the specificity at zero, so any utility class on a field still wins. */
+@layer base {
+  html.dark {
+    color-scheme: dark;
+  }
+  :where(.dark) :where(input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']), select, textarea) {
+    background-color: theme('colors.gray.800');
+    color: theme('colors.gray.100');
+    border-color: theme('colors.gray.600');
+  }
+  :where(.dark) :where(input, textarea)::placeholder {
+    color: theme('colors.gray.400');
+  }
+}

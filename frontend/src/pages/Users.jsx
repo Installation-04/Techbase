@@ -34,35 +34,35 @@ function UserModal({ onClose, onSaved, user }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">{user ? 'Modifier' : 'Nouvel utilisateur'}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{user ? 'Modifier' : 'Nouvel utilisateur'}</h3>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
+          {error && <p className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{error}</p>}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Nom *</label>
             <input
               type="text"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email *</label>
             <input
               type="email"
               value={form.email}
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
               Mot de passe {user && '(laisser vide pour ne pas changer)'}
             </label>
             <input
@@ -70,22 +70,22 @@ function UserModal({ onClose, onSaved, user }) {
               value={form.password}
               onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
               required={!user}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Rôle</label>
             <select
               value={form.role}
               onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               <option value="user">Utilisateur</option>
               <option value="admin">Administrateur</option>
             </select>
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm">
+            <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm">
               Annuler
             </button>
             <button type="submit" disabled={loading} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
@@ -119,13 +119,13 @@ export default function Users() {
   };
 
   const roleBadge = (role) => role === 'admin'
-    ? 'bg-purple-100 text-purple-700'
-    : 'bg-gray-100 text-gray-600';
+    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300';
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Utilisateurs</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Utilisateurs</h1>
         <button
           onClick={() => { setEditUser(null); setShowModal(true); }}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -135,24 +135,24 @@ export default function Users() {
       </div>
 
       {/* Desktop table */}
-      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="hidden md:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rôle</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nom</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rôle</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
             {users.map(u => (
-              <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 font-medium text-gray-900">
+              <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                   {u.name}
-                  {u.id === currentUser.id && <span className="ml-2 text-xs text-gray-400">(vous)</span>}
+                  {u.id === currentUser.id && <span className="ml-2 text-xs text-gray-400 dark:text-gray-400">(vous)</span>}
                 </td>
-                <td className="px-6 py-4 text-gray-600 text-sm">{u.email}</td>
+                <td className="px-6 py-4 text-gray-600 dark:text-gray-300 text-sm">{u.email}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${roleBadge(u.role)}`}>
                     {u.role === 'admin' ? 'Administrateur' : 'Utilisateur'}
@@ -162,14 +162,14 @@ export default function Users() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setEditUser(u); setShowModal(true); }}
-                      className="px-3 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                      className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                     >
                       Modifier
                     </button>
                     <button
                       onClick={() => handleDelete(u.id)}
                       disabled={u.id === currentUser.id}
-                      className="px-3 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-3 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Supprimer
                     </button>
@@ -184,29 +184,29 @@ export default function Users() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-3">
         {users.map(u => (
-          <div key={u.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div key={u.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-gray-900">{u.name}</p>
-                  {u.id === currentUser.id && <span className="text-xs text-gray-400">(vous)</span>}
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{u.name}</p>
+                  {u.id === currentUser.id && <span className="text-xs text-gray-400 dark:text-gray-400">(vous)</span>}
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge(u.role)}`}>
                     {u.role === 'admin' ? 'Admin' : 'Utilisateur'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1 truncate">{u.email}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 truncate">{u.email}</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => { setEditUser(u); setShowModal(true); }}
-                  className="px-3 py-1.5 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   Modifier
                 </button>
                 <button
                   onClick={() => handleDelete(u.id)}
                   disabled={u.id === currentUser.id}
-                  className="px-3 py-1.5 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   ✕
                 </button>

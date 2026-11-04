@@ -53,7 +53,7 @@ export default function NotificationBell({ dark = false }) {
     <div className="relative" ref={ref}>
       <button
         onClick={toggle}
-        className={`relative p-2 rounded-lg transition-colors ${dark ? 'text-gray-300 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'}`}
+        className={`relative p-2 rounded-lg transition-colors ${dark ? 'text-gray-300 hover:text-white hover:bg-gray-800' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
         aria-label="Notifications"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,25 +67,25 @@ export default function NotificationBell({ dark = false }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white rounded-xl shadow-2xl border border-gray-100 z-50 max-h-96 flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-800 text-sm">Notifications</h3>
+        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-800 z-50 max-h-96 flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Notifications</h3>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs text-blue-600 hover:underline">Tout marquer comme lu</button>
+              <button onClick={markAllRead} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Tout marquer comme lu</button>
             )}
           </div>
           <div className="overflow-y-auto flex-1">
             {items.length === 0 ? (
-              <p className="text-center text-gray-400 text-sm py-8">Aucune notification</p>
+              <p className="text-center text-gray-400 dark:text-gray-400 text-sm py-8">Aucune notification</p>
             ) : (
               items.map(item => (
                 <button
                   key={item.id}
                   onClick={() => handleClickItem(item)}
-                  className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!item.read ? 'bg-blue-50/50' : ''}`}
+                  className={`w-full text-left px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${!item.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                 >
-                  <p className={`text-sm ${!item.read ? 'font-medium text-gray-900' : 'text-gray-600'}`}>{item.message}</p>
-                  <p className="text-xs text-gray-400 mt-1">{new Date(item.created_at).toLocaleString('fr-FR')}</p>
+                  <p className={`text-sm ${!item.read ? 'font-medium text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300'}`}>{item.message}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-400 mt-1">{new Date(item.created_at).toLocaleString('fr-FR')}</p>
                 </button>
               ))
             )}

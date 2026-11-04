@@ -46,22 +46,22 @@ function Modal({ onClose, onSaved, client }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">{client ? 'Modifier le client' : 'Nouveau client'}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{client ? 'Modifier le client' : 'Nouveau client'}</h3>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6 space-y-4">
-          {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
+          {error && <p className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{error}</p>}
           {fields.map(f => (
             <div key={f.key}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">{f.label}</label>
               {f.multiline ? (
                 <textarea
                   value={form[f.key]}
                   onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               ) : (
                 <input
@@ -69,13 +69,13 @@ function Modal({ onClose, onSaved, client }) {
                   value={form[f.key]}
                   onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                   required={f.required}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               )}
             </div>
           ))}
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm">
+            <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm">
               Annuler
             </button>
             <button type="submit" disabled={loading} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
@@ -128,7 +128,7 @@ export default function Clients() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Clients</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Clients</h1>
         <button
           onClick={() => { setEditClient(null); setShowModal(true); }}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -137,7 +137,7 @@ export default function Clients() {
         </button>
       </div>
 
-      {error && <p className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
+      {error && <p className="mb-4 text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{error}</p>}
 
       <div className="mb-4">
         <input
@@ -145,48 +145,48 @@ export default function Clients() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Rechercher par nom, contrat, responsable..."
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+          className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-900"
         />
       </div>
 
       {/* Desktop table */}
-      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="hidden md:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">N° Contrat</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Responsable</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nom</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">N° Contrat</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Responsable</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-400">Aucun client trouvé</td>
+                <td colSpan={4} className="px-6 py-8 text-center text-gray-400 dark:text-gray-400">Aucun client trouvé</td>
               </tr>
             ) : (
               filtered.map(client => (
                 <tr
                   key={client.id}
                   onClick={() => navigate(`/clients/${client.id}`)}
-                  className="hover:bg-blue-50 cursor-pointer transition-colors"
+                  className="hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer transition-colors"
                 >
-                  <td className="px-6 py-4 font-medium text-gray-900">{client.name}</td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">{client.contract_number || '—'}</td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">{client.manager || '—'}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{client.name}</td>
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300 text-sm">{client.contract_number || '—'}</td>
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300 text-sm">{client.manager || '—'}</td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
                       <button
                         onClick={e => { e.stopPropagation(); setEditClient(client); setShowModal(true); }}
-                        className="px-3 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                        className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                       >
                         Modifier
                       </button>
                       {user?.role === 'admin' && (
                         <button
                           onClick={e => handleDelete(client.id, e)}
-                          className="px-3 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors"
+                          className="px-3 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
                         >
                           Supprimer
                         </button>
@@ -203,7 +203,7 @@ export default function Clients() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 text-center text-gray-400 shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-8 text-center text-gray-400 dark:text-gray-400 shadow-sm border border-gray-100 dark:border-gray-800">
             Aucun client trouvé
           </div>
         ) : (
@@ -211,29 +211,29 @@ export default function Clients() {
             <div
               key={client.id}
               onClick={() => navigate(`/clients/${client.id}`)}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer active:bg-blue-50 transition-colors"
+              className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 cursor-pointer active:bg-blue-50 dark:active:bg-blue-900/20 transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">{client.name}</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">{client.name}</p>
                   {client.contract_number && (
-                    <p className="text-sm text-gray-500 mt-0.5">Contrat: {client.contract_number}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Contrat: {client.contract_number}</p>
                   )}
                   {client.manager && (
-                    <p className="text-sm text-gray-500">{client.manager}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{client.manager}</p>
                   )}
                 </div>
                 <div className="flex gap-2 ml-3 shrink-0">
                   <button
                     onClick={e => { e.stopPropagation(); setEditClient(client); setShowModal(true); }}
-                    className="px-3 py-1.5 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                    className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     Modifier
                   </button>
                   {user?.role === 'admin' && (
                     <button
                       onClick={e => handleDelete(client.id, e)}
-                      className="px-3 py-1.5 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                      className="px-3 py-1.5 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                     >
                       ✕
                     </button>

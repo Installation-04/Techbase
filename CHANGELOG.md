@@ -4,6 +4,7 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- **Mode sombre** : un bouton dans l'en-tête (☀️ / 🌙 / automatique) choisit le thème clair, sombre ou celui du système ; le choix est mémorisé dans le navigateur et appliqué avant l'affichage, sans flash. Toutes les pages, fenêtres et formulaires sont adaptés ; le thème clair est inchangé.
 - **Installation en une commande** : `curl -fsSL https://raw.githubusercontent.com/Installation-04/Techbase/main/get-techibase.sh | bash` télécharge la dernière release (ou `--version X.Y.Z`), la déploie dans `./techibase`, génère le `.env` et démarre les conteneurs à partir des images publiées. Relancer la commande met à jour une installation existante en conservant le `.env` et les données.
 - **Documentation** : un wiki dans `docs/` (installation, premiers pas, fiche client, bons de service, recherche et notifications, administration, versions et mises à jour, dépannage), illustré de captures d'écran faites sur des données fictives. Le README y renvoie et présente la nouvelle installation ; il appelle maintenant « Utilisateur » le rôle que l'interface affiche ainsi.
 - Correctif : le graphique « Interventions (6 derniers mois) » du tableau de bord dessinait toutes ses barres à la même hauteur minimale (4 px) quel que soit le nombre d'interventions ; les hauteurs sont maintenant proportionnelles au mois le plus chargé.
