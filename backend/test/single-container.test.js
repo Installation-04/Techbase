@@ -79,13 +79,29 @@ test('the supervisor rejects database names that are not plain identifiers', ski
   assert.match(r.stderr, /DB_NAME and DB_USER may only contain/);
 });
 
-test('backup then restore brings back the database AND the uploaded documents', skipNoPgTools, async () => {
+// A dump made by a newer pg_dump than the server can contain settings the server does not know
+// (pg_dump 17 writes SET transaction_timeout, rejected by PostgreSQL 16 on restore). The image
+// always has matching tools; the test must use matching ones too.
+function matchingPgToolsPath(serverMajor) {
+  const dir = `/usr/lib/postgresql/${serverMajor}/bin`;
+  if (fs.existsSync(path.join(dir, 'pg_dump'))) return `${dir}:${process.env.PATH}`;
+  const out = spawnSync('pg_dump', ['--version'], { encoding: 'utf8' }).stdout || '';
+  return out.match(/\s(\d+)[.\s]/)?.[1] === String(serverMajor) ? process.env.PATH : null;
+}
+
+test('backup then restore brings back the database AND the uploaded documents', skipNoPgTools, async t => {
   const db = await createTestDb();
+  const serverMajor = Math.floor((await db.pool.query('SHOW server_version_num')).rows[0].server_version_num / 10000);
+  const toolsPath = matchingPgToolsPath(serverMajor);
+  if (!toolsPath) {
+    await db.drop();
+    return t.skip(`no pg_dump ${serverMajor} to match the test server (install postgresql-client-${serverMajor})`);
+  }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'techibase-backup-'));
   const dataDir = path.join(dir, 'data');
   fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
   fs.writeFileSync(path.join(dataDir, 'uploads', 'plan.pdf'), 'original bytes');
-  const env = { PATH: process.env.PATH, DATABASE_URL: db.url, DATA_DIR: dataDir };
+  const env = { PATH: toolsPath, DATABASE_URL: db.url, DATA_DIR: dataDir };
   const run = (script, input) => spawnSync('bash', [path.join(ROOT, 'docker/single', script)], { env, input, maxBuffer: 64 * 1024 * 1024 });
   try {
     await db.pool.query("INSERT INTO clients (name) VALUES ('Usine Métal Laval')");
