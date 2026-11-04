@@ -82,7 +82,7 @@ async function systemInfo(opts = {}) {
     checked,
     reason,
     updateAvailable,
-    updaterAvailable: false, // set by the updater integration (separate change)
+    updaterAvailable: install.fromRelease && require('./updaterClient').config(opts.env).enabled,
   };
 }
 

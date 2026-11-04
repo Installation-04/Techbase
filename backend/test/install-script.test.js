@@ -174,3 +174,60 @@ test('install.sh rejects an unknown option', skip, () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ---- opt-in one-click updater ----
+
+const releaseExample = () => read(ROOT, '.env.example') + '\nTECHIBASE_VERSION=0.0.11\nCOMPOSE_FILE=docker-compose.yml:docker-compose.release.yml\n';
+
+test('--with-updater on a release install adds the secret, the install dir and the compose file', skip, () => {
+  const { dir, out, code } = runInstaller(undefined, { args: ['--with-updater'], example: releaseExample() });
+  try {
+    assert.equal(code, 0, out);
+    const env = read(dir, '.env');
+    assert.match(env, /^UPDATER_TOKEN=[0-9a-f]{64}$/m);
+    assert.match(env, new RegExp(`^INSTALL_DIR=${dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
+    assert.match(env, /^COMPOSE_FILE=docker-compose\.single\.yml:docker-compose\.single\.release\.yml:docker-compose\.updater\.yml$|^COMPOSE_FILE=.*docker-compose\.updater\.yml$/m);
+    assert.equal((env.match(/^COMPOSE_FILE=/gm) || []).length, 1);
+    assert.match(out, /Mises à jour en un clic activées/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--with-updater is idempotent on an existing install and keeps the existing secret', skip, () => {
+  const token = 'f'.repeat(64);
+  const existing = `JWT_SECRET=keep-me-0123456789abcdef0123456789abcdef\nTECHIBASE_VERSION=0.0.11\nCOMPOSE_FILE=docker-compose.yml:docker-compose.release.yml:docker-compose.updater.yml\nUPDATER_TOKEN=${token}\nINSTALL_DIR=/somewhere\n`;
+  const { dir, out, code } = runInstaller(existing, { args: ['--with-updater'] });
+  try {
+    assert.equal(code, 0, out);
+    assert.equal(read(dir, '.env'), existing, 'nothing changes when it is already enabled');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--with-updater refuses installs that are not pinned to a published version', skip, () => {
+  for (const env of [undefined, 'JWT_SECRET=x\nCOMPOSE_FILE=docker-compose.yml:docker-compose.release.yml\nTECHIBASE_VERSION=latest\n']) {
+    const { dir, out, code } = runInstaller(env, { args: ['--with-updater'] });
+    try {
+      assert.equal(code, 1, out);
+      assert.match(out, /images publiées/);
+      assert.doesNotMatch(read(dir, '.env'), /UPDATER_TOKEN/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('the updater override pins the image to the app version and needs the secret and the install dir', () => {
+  const compose = read(ROOT, 'docker-compose.updater.yml');
+  assert.match(compose, /techbase-updater:\$\{TECHIBASE_VERSION:\?/);
+  assert.match(compose, /UPDATER_TOKEN: "\$\{UPDATER_TOKEN:\?/);
+  assert.match(compose, /INSTALL_DIR:\?/);
+  assert.match(compose, /\/var\/run\/docker\.sock:\/var\/run\/docker\.sock/);
+  // The socket is mounted in exactly one service of exactly one file.
+  for (const f of ['docker-compose.yml', 'docker-compose.single.yml', 'docker-compose.https.yml', 'docker-compose.single.https.yml', 'docker-compose.release.yml', 'docker-compose.single.release.yml']) {
+    assert.doesNotMatch(read(ROOT, f), /docker\.sock/, `${f} must not mount the Docker socket`);
+  }
+  assert.equal(compose.split('\n').filter(l => l.includes('docker.sock')).length, 1);
+});

@@ -24,6 +24,7 @@ services:
       JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is not set in .env - on a new install run ./install.sh, on an existing install keep your current value because changing it makes stored passwords unreadable}"
       NODE_ENV: ${NODE_ENV:-production}
       DEPLOY_MODE: single
+      UPDATER_TOKEN: ${UPDATER_TOKEN:-}
       TECHIBASE_VERSION: ${TECHIBASE_VERSION:-}
       UPDATE_CHECK: ${UPDATE_CHECK:-true}
       TZ: ${TZ:-UTC}

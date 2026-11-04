@@ -6,14 +6,18 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # Nouvelle installation : un seul conteneur (application, API, planificateur et base
 # de données) par défaut ; --multi garde les quatre conteneurs séparés.
 MODE=single
+WITH_UPDATER=0
 for arg in "$@"; do
   case "$arg" in
     --multi) MODE=multi ;;
     --single) MODE=single ;;
+    --with-updater) WITH_UPDATER=1 ;;
     -h|--help)
-      echo "Usage : ./install.sh [--single | --multi]"
+      echo "Usage : ./install.sh [--single | --multi] [--with-updater]"
       echo "  --single  un seul conteneur (par défaut pour une nouvelle installation)"
       echo "  --multi   quatre conteneurs séparés : db, backend, scheduler, frontend"
+      echo "  --with-updater  active les mises à jour en un clic depuis le panneau d'administration"
+      echo "                  (ajoute un conteneur qui a accès au socket Docker ; images publiées requises)"
       echo "Une installation existante (fichier .env présent) garde son mode."
       exit 0 ;;
     *) echo "Option inconnue : $arg (voir --help)" >&2; exit 2 ;;
@@ -70,6 +74,22 @@ if [ ! -f .env ]; then
   fi
 else
   echo "Fichier .env déjà présent, conservé tel quel."
+fi
+
+# Mises à jour en un clic (option explicite, idempotente, y compris sur une installation existante).
+if [ "$WITH_UPDATER" = 1 ]; then
+  if ! grep -qE '^COMPOSE_FILE=.*docker-compose(\.single)?\.release\.yml' .env || ! grep -qE '^TECHIBASE_VERSION=[0-9]+\.[0-9]+\.[0-9]+$' .env; then
+    echo "Erreur : --with-updater exige une installation par les images publiées (TECHIBASE_VERSION=X.Y.Z dans .env)." >&2
+    echo "Utilisez la commande rapide ou le paquet de release (voir « Installation » dans la documentation)." >&2
+    exit 1
+  fi
+  if ! command -v openssl &> /dev/null; then echo "Erreur : openssl est requis pour générer le secret du service de mise à jour." >&2; exit 1; fi
+  grep -qE '^INSTALL_DIR=' .env || printf '\nINSTALL_DIR=%s\n' "$(pwd)" >> .env
+  grep -qE '^UPDATER_TOKEN=.{32,}' .env || { sed -i.bak '/^UPDATER_TOKEN=/d' .env && rm -f .env.bak; printf 'UPDATER_TOKEN=%s\n' "$(openssl rand -hex 32)" >> .env; }
+  if ! grep -qE '^COMPOSE_FILE=.*docker-compose\.updater\.yml' .env; then
+    sed -i.bak -E 's#^(COMPOSE_FILE=.*)$#\1:docker-compose.updater.yml#' .env && rm -f .env.bak
+  fi
+  echo "Mises à jour en un clic activées (conteneur « updater », accès au socket Docker)."
 fi
 
 # Le mode effectif est celui que décrit le .env (un .env existant d'avant les

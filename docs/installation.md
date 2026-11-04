@@ -19,7 +19,7 @@ Quand il affiche « TechIBase est prêt ! », ouvrez l'adresse qu'il affiche, pa
 
 > **Pourquoi le port 26591 ?** C'est un port volontairement peu courant : presque aucun autre logiciel ne l'utilise, donc pas de conflit avec le 80 ou le 8080. Il est fixe, le même pour toutes les installations. Pour en choisir un autre, mettez `HTTP_PORT` dans le `.env` (par exemple `80` pour une adresse sans port) puis `docker compose up -d`.
 
-Pour choisir la version ou le dossier :
+Pour activer aussi les [mises à jour en un clic](administration.md#mise-à-jour-en-un-clic-facultatif) depuis le panneau d'administration, ajoutez `--with-updater` (voir la mise en garde sur le socket Docker). Pour choisir la version ou le dossier :
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Installation-04/Techbase/main/get-techibase.sh \

@@ -1,0 +1,32 @@
+# OPTIONAL one-click updates from the admin panel. Off by default.
+#
+# ⚠ This container is given the Docker socket, which is root-equivalent on the host: anyone
+# who could drive it could run any container. It accepts only three fixed actions (status,
+# update to a published release, roll back), only on the private compose network and only with
+# UPDATER_TOKEN; the app asks it only for an admin who has just re-typed their password.
+# Leave it off if you prefer to update by hand (see docs).
+#
+# Needs an install from the published images (TECHIBASE_VERSION pinned to X.Y.Z in .env).
+# Enable with  ./install.sh --with-updater  or by adding this file to COMPOSE_FILE and setting
+# INSTALL_DIR (absolute path of this folder) and UPDATER_TOKEN (>= 32 random characters) in .env.
+services:
+  updater:
+    image: ${TECHIBASE_REGISTRY:-ghcr.io/installation-04}/techbase-updater:${TECHIBASE_VERSION:?TECHIBASE_VERSION must be pinned in .env to use the updater}
+    restart: unless-stopped
+    environment:
+      UPDATER_TOKEN: "${UPDATER_TOKEN:?UPDATER_TOKEN is not set in .env}"
+      PROJECT_DIR: "${INSTALL_DIR:?INSTALL_DIR is not set in .env (absolute path of the install folder)}"
+      UPDATER_RELEASES_API: ${UPDATER_RELEASES_API:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Same absolute path inside and outside: compose resolves ./ paths on the host.
+      - "${INSTALL_DIR}:${INSTALL_DIR}"
+      - updater_data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  updater_data:
