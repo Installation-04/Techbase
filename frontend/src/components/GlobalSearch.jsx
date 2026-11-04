@@ -56,57 +56,57 @@ export default function GlobalSearch() {
           onChange={handleChange}
           onFocus={() => results && setOpen(true)}
           placeholder="Rechercher clients, équipements, contacts..."
-          className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+          className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
         />
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-400">🔍</span>
         {loading && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">...</span>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-400 text-sm">...</span>
         )}
       </div>
 
       {open && hasResults && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-96 overflow-auto">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 z-50 max-h-96 overflow-auto">
           {results.clients.length > 0 && (
             <div>
-              <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">Clients</p>
+              <p className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">Clients</p>
               {results.clients.map(c => (
                 <button
                   key={c.id}
                   onClick={() => { navigate(`/clients/${c.id}`); setOpen(false); setQuery(''); }}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-50"
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-gray-50 dark:border-gray-800"
                 >
-                  <p className="font-medium text-gray-900">{c.name}</p>
-                  {c.contract_number && <p className="text-sm text-gray-500">Contrat: {c.contract_number}</p>}
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{c.name}</p>
+                  {c.contract_number && <p className="text-sm text-gray-500 dark:text-gray-400">Contrat: {c.contract_number}</p>}
                 </button>
               ))}
             </div>
           )}
           {results.equipment.length > 0 && (
             <div>
-              <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">Équipements</p>
+              <p className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">Équipements</p>
               {results.equipment.map(e => (
                 <button
                   key={e.id}
                   onClick={() => { navigate(`/clients/${e.client_id}`); setOpen(false); setQuery(''); }}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-50"
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-gray-50 dark:border-gray-800"
                 >
-                  <p className="font-medium text-gray-900">{e.name}</p>
-                  <p className="text-sm text-gray-500">{e.client_name} {e.serial_number && `· ${e.serial_number}`}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{e.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{e.client_name} {e.serial_number && `· ${e.serial_number}`}</p>
                 </button>
               ))}
             </div>
           )}
           {results.contacts.length > 0 && (
             <div>
-              <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">Contacts</p>
+              <p className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">Contacts</p>
               {results.contacts.map(c => (
                 <button
                   key={c.id}
                   onClick={() => { navigate(`/clients/${c.client_id}`); setOpen(false); setQuery(''); }}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-50"
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-gray-50 dark:border-gray-800"
                 >
-                  <p className="font-medium text-gray-900">{c.name}</p>
-                  <p className="text-sm text-gray-500">{c.client_name} {c.role && `· ${c.role}`}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{c.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{c.client_name} {c.role && `· ${c.role}`}</p>
                 </button>
               ))}
             </div>
@@ -115,7 +115,7 @@ export default function GlobalSearch() {
       )}
 
       {open && results && !hasResults && query.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 p-4 text-center text-gray-500">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 z-50 p-4 text-center text-gray-500 dark:text-gray-400">
           Aucun résultat pour "{query}"
         </div>
       )}
