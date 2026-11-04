@@ -199,20 +199,42 @@ router.post('/work-orders/:id/service-report/attach', authenticate, async (req, 
     const pdf = await renderPdf(db, workOrder, report);
     const filename = `${crypto.randomUUID()}.pdf`;
     const uploadsDir = documentsRouter.uploadsDir;
-    await fs.promises.writeFile(path.join(uploadsDir, filename), pdf);
+    const filePath = path.join(uploadsDir, filename);
+    await fs.promises.writeFile(filePath, pdf).catch(async err => {
+      await fs.promises.unlink(filePath).catch(() => {}); // a partial write must not linger
+      throw err;
+    });
 
-    const doc = await db.query(
-      'INSERT INTO documents (client_id, filename, original_name, mimetype, size, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [workOrder.client_id, filename, pdfFilename(workOrder), 'application/pdf', pdf.length, req.user.id]
-    );
+    let doc;
+    let oldDocumentId = null;
+    try {
+      doc = await db.query(
+        'INSERT INTO documents (client_id, filename, original_name, mimetype, size, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+        [workOrder.client_id, filename, pdfFilename(workOrder), 'application/pdf', pdf.length, req.user.id]
+      );
+      // Swap the attachment atomically: the row lock makes concurrent attaches
+      // each see (and so clean up) exactly the document the previous one set.
+      const swap = await db.query(
+        `WITH old AS (SELECT document_id FROM service_reports WHERE id = $2 FOR UPDATE)
+         UPDATE service_reports SET document_id = $1, updated_at = NOW()
+         FROM old WHERE service_reports.id = $2
+         RETURNING old.document_id AS old_document_id`,
+        [doc.rows[0].id, report.id]
+      );
+      oldDocumentId = swap.rows[0]?.old_document_id ?? null;
+    } catch (err) {
+      // Do not leave the new file (or its row) behind when the swap failed.
+      if (doc) await db.query('DELETE FROM documents WHERE id = $1', [doc.rows[0].id]).catch(() => {});
+      await fs.promises.unlink(filePath).catch(() => {});
+      throw err;
+    }
 
-    if (report.document_id) {
-      const old = await db.query('DELETE FROM documents WHERE id = $1 AND client_id = $2 RETURNING filename', [report.document_id, workOrder.client_id]);
+    if (oldDocumentId) {
+      const old = await db.query('DELETE FROM documents WHERE id = $1 AND client_id = $2 RETURNING filename', [oldDocumentId, workOrder.client_id]);
       if (old.rows[0]) {
         await fs.promises.unlink(path.join(uploadsDir, old.rows[0].filename)).catch(() => {});
       }
     }
-    await db.query('UPDATE service_reports SET document_id = $1, updated_at = NOW() WHERE id = $2', [doc.rows[0].id, report.id]);
     res.status(201).json(doc.rows[0]);
   } catch (err) {
     serverError(res, err);

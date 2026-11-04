@@ -14,7 +14,7 @@ delete process.env.NETLIFY;
 
 const { app } = require('../src/app');
 const { issueToken } = require('../src/lib/token');
-const { parseSignatureDataUrl, buildServiceReportPdf, SignatureError, formatMinutes } = require('../src/lib/serviceReport');
+const { parseSignatureDataUrl, buildServiceReportPdf, SignatureError, formatMinutes, pdfText } = require('../src/lib/serviceReport');
 
 // Valid grayscale PNG of any size, built with zlib so the CRCs are right.
 function crc32(buf) {
@@ -63,6 +63,30 @@ test('parseSignatureDataUrl accepts a real PNG and rejects everything else', () 
   assert.throws(() => parseSignatureDataUrl(42), SignatureError);
 });
 
+test('parseSignatureDataUrl refuses bombs, corrupt streams and polyglots', () => {
+  const png = makePng(40, 20);
+  // IHDR declares a big image backed by almost no data (decompression bomb)
+  const bomb = Buffer.from(png);
+  bomb.writeUInt32BE(2000, 16);
+  bomb.writeUInt32BE(2000, 20);
+  assert.throws(() => parseSignatureDataUrl(dataUrl(bomb)), SignatureError);
+  // bytes after IEND (polyglot)
+  assert.throws(() => parseSignatureDataUrl(dataUrl(Buffer.concat([png, Buffer.from('<?php system($_GET[0]);')]))), SignatureError);
+  // truncated pixel data / missing IEND
+  assert.throws(() => parseSignatureDataUrl(dataUrl(png.subarray(0, png.length - 20))), SignatureError);
+  // IDAT that is not a zlib stream
+  const junk = Buffer.concat([png.subarray(0, 8), chunk('IHDR', png.subarray(16, 29)), chunk('IDAT', Buffer.from('not zlib')), chunk('IEND', Buffer.alloc(0))]);
+  assert.throws(() => parseSignatureDataUrl(dataUrl(junk)), SignatureError);
+});
+
+test('pdfText keeps French text and replaces what Helvetica cannot draw', () => {
+  assert.equal(pdfText('é è à œ € ç « » Œ'), 'é è à œ € ç « » Œ');
+  assert.equal(pdfText('a\r\nb\u0000c'), 'a\nbc');
+  assert.equal(pdfText('日本 Привет 😀'), '?? ?????? ?');
+  assert.equal(pdfText('e\u0301'), 'é');
+  assert.equal(pdfText(null), '');
+});
+
 test('formatMinutes', () => {
   assert.equal(formatMinutes(45), '45 min');
   assert.equal(formatMinutes(125), '2 h 05 min');
@@ -81,6 +105,18 @@ test('buildServiceReportPdf returns a valid PDF buffer, signed or not', async ()
   assert.ok(signed.subarray(-10).toString().includes('%%EOF'));
   const unsigned = await buildServiceReportPdf({ ...base, signature: null });
   assert.equal(unsigned.subarray(0, 5).toString(), '%PDF-');
+});
+
+test('buildServiceReportPdf copes with a very long report and an absurd company name', async () => {
+  const pdf = await buildServiceReportPdf({
+    company: 'Société '.repeat(40),
+    workOrder: { id: 1, title: '日本語 😀 titre', description: null },
+    client: { name: 'Acme' },
+    report: { work_done: 'ligne é\n'.repeat(900), observations: 'x'.repeat(9000), signer_name: 'M', signed_at: new Date() },
+    signature: makePng(40, 20),
+  });
+  assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+  assert.ok((pdf.toString('latin1').match(/\/Type \/Page\b/g) || []).length > 3);
 });
 
 let testDb;
@@ -166,4 +202,23 @@ test('create, sign, download and attach a report', skipWithoutPg, async () => {
   const edited = await request(app).put(url(woId)).set(t).send({ work_done: 'Modifié' });
   assert.equal(edited.body.has_signature, false);
   assert.equal((await request(app).get(url(woId, '/signature')).set(t)).status, 404);
+});
+
+test('concurrent attaches keep exactly one document and leave no orphan file', skipWithoutPg, async () => {
+  const t = tokenFor(1);
+  const clientId = (await testDb.pool.query("INSERT INTO clients (name) VALUES ('Beta') RETURNING id")).rows[0].id;
+  const id = (await testDb.pool.query("INSERT INTO work_orders (client_id, title, assigned_to, created_by) VALUES ($1,'T',1,3) RETURNING id", [clientId])).rows[0].id;
+  await request(app).put(url(id)).set(t).send({ work_done: 'ok', signer_name: 'M', signature: PNG_URL });
+
+  const results = await Promise.all([1, 2, 3, 4].map(() => request(app).post(url(id, '/attach')).set(t)));
+  assert.ok(results.every(r => r.status === 201));
+  const docs = await testDb.pool.query('SELECT id, filename FROM documents WHERE client_id = $1', [clientId]);
+  assert.equal(docs.rows.length, 1);
+  const link = await testDb.pool.query('SELECT document_id FROM service_reports WHERE work_order_id = $1', [id]);
+  assert.equal(link.rows[0].document_id, docs.rows[0].id);
+  const onDisk = fs.readdirSync(uploadsDir).filter(f => f.endsWith('.pdf'));
+  assert.ok(onDisk.includes(docs.rows[0].filename));
+  // every other generated PDF was cleaned up (only the first test's attachment remains besides this one)
+  const known = (await testDb.pool.query('SELECT filename FROM documents')).rows.map(r => r.filename);
+  assert.deepEqual(onDisk.filter(f => !known.includes(f)), []);
 });
