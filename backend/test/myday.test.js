@@ -91,3 +91,33 @@ test('a cancelled order cannot be transitioned', skipWithoutPg, async () => {
   const res = await request(app).post(`/api/work-orders/${id}/status`).set(tokenFor({ id: tech })).send({ status: 'done' });
   assert.equal(res.status, 409);
 });
+
+test('my-day rejects an impossible calendar date instead of failing in SQL', skipWithoutPg, async () => {
+  const res = await request(app).get('/api/work-orders/my-day?date=2026-02-31').set(tokenFor({ id: tech }));
+  assert.equal(res.status, 400);
+});
+
+test('my-day reads "finished today" on the technician clock when tz is given', skipWithoutPg, async () => {
+  const stamp = (await testDb.pool.query(
+    `SELECT ((TIMESTAMP '2026-07-15 20:00' AT TIME ZONE 'America/Toronto') AT TIME ZONE current_setting('TimeZone')) AS t`)).rows[0].t;
+  await insert('evening job', { status: 'done', completedAt: stamp });
+  const titles = async (tz) => (await request(app).get(`/api/work-orders/my-day?date=2026-07-15&tz=${tz}`)
+    .set(tokenFor({ id: tech }))).body.workOrders.map(w => w.title);
+  assert.ok((await titles('America/Toronto')).includes('evening job'));
+  assert.ok(!(await titles('Pacific/Auckland')).includes('evening job'));
+  assert.equal((await request(app).get('/api/work-orders/my-day?tz=Mars/Base').set(tokenFor({ id: tech }))).status, 400);
+});
+
+test('status transition on a non-numeric or oversized id is a 404, not a 500', skipWithoutPg, async () => {
+  for (const id of ['abc', '99999999999']) {
+    const res = await request(app).post(`/api/work-orders/${id}/status`).set(tokenFor({ id: tech })).send({ status: 'done' });
+    assert.equal(res.status, 404);
+  }
+});
+
+test('finishing twice keeps the first completion time', skipWithoutPg, async () => {
+  const id = await insert('twice', { status: 'in_progress', due: DAY });
+  const post = () => request(app).post(`/api/work-orders/${id}/status`).set(tokenFor({ id: tech })).send({ status: 'done' });
+  const first = (await post()).body.completed_at;
+  assert.equal((await post()).body.completed_at, first);
+});
