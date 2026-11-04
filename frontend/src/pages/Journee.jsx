@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { formatDate } from '../lib/dates.mjs';
@@ -26,7 +26,12 @@ function localDate() {
 }
 
 const mapsUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-const telHref = (phone) => `tel:${phone.replace(/[^\d+]/g, '')}`;
+// Digits only (a leading + is kept); null when nothing dialable, e.g. "n/a".
+const telHref = (phone) => {
+  const digits = phone.replace(/[^\d]/g, '');
+  return digits ? `tel:${phone.trim().startsWith('+') ? '+' : ''}${digits}` : null;
+};
+const timeZone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; } };
 
 const TOUCH = 'min-h-[44px] inline-flex items-center justify-center rounded-lg text-sm font-medium px-4 transition-colors';
 const NEUTRAL_BTN = `${TOUCH} bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700`;
@@ -113,12 +118,14 @@ function WorkOrderCard({ wo, onChanged, onError }) {
               <span className="break-words min-w-0">{wo.client_address}</span>
             </a>
           )}
-          {wo.client_phone && (
-            <a href={telHref(wo.client_phone)} className={`min-h-[44px] flex items-center gap-2 text-sm ${link}`}>
+          {wo.client_phone && (telHref(wo.client_phone)
+            ? <a href={telHref(wo.client_phone)} className={`min-h-[44px] flex items-center gap-2 text-sm ${link}`}>
               <span aria-hidden="true">📞</span>
               <span>{wo.client_phone}</span>
             </a>
-          )}
+            : <p className="min-h-[44px] flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <span aria-hidden="true">📞</span><span>{wo.client_phone}</span>
+            </p>)}
         </div>
       )}
 
@@ -194,17 +201,30 @@ export default function Journee() {
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
 
+  const latest = useRef(0);
+
   const load = useCallback(async () => {
+    const mine = ++latest.current;
     try {
-      const res = await axios.get('/api/work-orders/my-day', { params: { date: localDate() } });
+      const res = await axios.get('/api/work-orders/my-day', { params: { date: localDate(), tz: timeZone() }, timeout: 15000 });
+      if (mine !== latest.current) return; // a newer refresh already answered
       setData(res.data);
       setLoadError('');
     } catch (err) {
-      setLoadError(err.response?.data?.error || 'Impossible de charger votre journée');
+      if (mine !== latest.current) return;
+      setLoadError(err.response?.data?.error
+        || (err.request ? 'Connexion impossible : vérifiez votre réseau puis actualisez' : 'Impossible de charger votre journée'));
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  // A phone keeps this tab alive overnight and between jobs: refresh on return so the
+  // day (and the "En retard" flags) never stay on yesterday.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [load]);
   // Tells the phone landing redirect (App.jsx) that this session already started here.
   useEffect(() => { try { sessionStorage.setItem('journee-landed', '1'); } catch { /* ignore */ } }, []);
 
