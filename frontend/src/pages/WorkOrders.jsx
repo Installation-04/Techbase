@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { formatDate } from '../lib/dates.mjs';
 import ServiceReportModal from '../components/ServiceReportModal';
+import { useAuth } from '../contexts/AuthContext';
 
 const STATUS_LABELS = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', done: 'Terminé', cancelled: 'Annulé' };
 const STATUS_ORDER = ['open', 'assigned', 'in_progress', 'done', 'cancelled'];
@@ -142,7 +143,10 @@ export default function WorkOrders() {
   const [users, setUsers] = useState([]);
   const [filterAssignee, setFilterAssignee] = useState('');
   const [showNew, setShowNew] = useState(false);
+  const { user } = useAuth();
   const [reportFor, setReportFor] = useState(null);
+  // Same rule as the API: admins, the assignee and the creator may open the report.
+  const canReport = item => user?.role === 'admin' || [item.assigned_to, item.created_by].some(id => id != null && String(id) === String(user?.id));
 
   const fetchItems = useCallback(async () => {
     const params = {};
@@ -229,12 +233,12 @@ export default function WorkOrders() {
                   >
                     {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                   </select>
-                  <button
+                  {canReport(item) && <button
                     onClick={() => setReportFor(item)}
                     className="w-full mt-2 px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
                     Rapport d'intervention
-                  </button>
+                  </button>}
                 </div>
               ))}
               {grouped[status].length === 0 && <p className="text-xs text-gray-300 text-center py-4">—</p>}
