@@ -43,8 +43,14 @@ test('every setting the 4-container backend receives also reaches the all-in-one
   // UPLOADS_DIR is set by the entrypoint (/data/uploads); the Postgres variables belong to the bundled database.
   const multi = settings('docker-compose.yml');
   const single = settings('docker-compose.single.yml');
-  const missing = [...multi].filter(k => !single.has(k) && !['POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'UPLOADS_DIR'].includes(k));
+  const missing = [...multi].filter(k => !single.has(k) && !['POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'UPLOADS_DIR', 'DB_HOST', 'DB_PORT'].includes(k));
   assert.deepEqual(missing, [], `missing in docker-compose.single.yml: ${missing.join(', ')}`);
+});
+
+test('a .env copied from .env.example (DB_HOST=db) must not turn the bundled database off', () => {
+  // The four-container stack uses DB_HOST=db; the all-in-one container would read it as "external database".
+  assert.match(read('.env.example'), /^DB_HOST=db$/m, 'this guard assumes .env.example still carries DB_HOST=db');
+  assert.doesNotMatch(read('docker-compose.single.yml'), /^\s+DB_(HOST|PORT):/m);
 });
 
 test('DATABASE_URL selects an external database', () => {

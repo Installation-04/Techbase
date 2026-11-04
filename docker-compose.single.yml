@@ -8,7 +8,9 @@
 # Restore:  docker compose exec -T techibase techibase-restore < techibase-2026-01-01.tar.gz && docker compose restart
 #
 # To use an external PostgreSQL instead of the bundled one, set DATABASE_URL
-# (or DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD) in .env.
+# in .env. (DB_HOST and DB_PORT are deliberately NOT passed on: .env.example carries
+# DB_HOST=db for the four-container stack, which would otherwise be mistaken for an
+# external database here.)
 services:
   techibase:
     build: .
@@ -23,8 +25,6 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       TZ: ${TZ:-UTC}
       DATABASE_URL: ${DATABASE_URL:-}
-      DB_HOST: ${DB_HOST:-}
-      DB_PORT: ${DB_PORT:-}
       DB_NAME: ${DB_NAME:-techbase}
       DB_USER: ${DB_USER:-techbase}
       DB_PASSWORD: ${DB_PASSWORD:-}
