@@ -88,6 +88,7 @@ router.post('/clients/:clientId/documents', authenticate, upload.single('file'),
       'INSERT INTO documents (client_id, filename, original_name, mimetype, size, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
       [req.params.clientId, filename, req.file.originalname, mimetype, req.file.size, req.user.id]
     );
+    await audit(req, 'document.uploaded', { client_id: result.rows[0].client_id, name: req.file.originalname, size: req.file.size }, { target: ['document', result.rows[0].id] });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     serverError(res, err);

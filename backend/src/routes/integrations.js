@@ -147,6 +147,7 @@ router.post('/integrations/acumatica/clients/:clientId/push', authenticate, asyn
       [client.id, remoteId, req.user.id]
     );
 
+    await audit(req, 'integration.acumatica.pushed', { client_id: client.id, name: client.name, remote_id: remoteId }, { target: ['client', client.id] });
     res.json({ remoteId, syncedAt: new Date().toISOString() });
   } catch (err) {
     res.status(502).json({ error: err.message });

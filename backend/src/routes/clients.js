@@ -34,6 +34,7 @@ router.post('/clients', authenticate, async (req, res) => {
       'INSERT INTO clients (name, contract_number, manager, address, phone, email, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
       [name, contract_number, manager, address, phone, email, notes]
     );
+    await audit(req, 'client.created', { name: result.rows[0].name }, { target: ['client', result.rows[0].id] });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     serverError(res, err);
@@ -49,6 +50,7 @@ router.put('/clients/:id', authenticate, async (req, res) => {
       [name, contract_number, manager, address, phone, email, notes, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Client non trouvé' });
+    await audit(req, 'client.updated', { name: result.rows[0].name }, { target: ['client', result.rows[0].id] });
     res.json(result.rows[0]);
   } catch (err) {
     serverError(res, err);

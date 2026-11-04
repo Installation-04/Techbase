@@ -131,12 +131,30 @@ test('client deletion is recorded', skipWithoutPg, async () => {
   assert.equal(rows[0].detail.name, 'Doomed Inc');
 });
 
+test('client creation/edit and document upload are recorded', skipWithoutPg, async () => {
+  const made = await request(app).post('/api/clients').set(bearer(plain)).send({ name: 'Acme' }).expect(201);
+  await request(app).put(`/api/clients/${made.body.id}`).set(bearer(plain)).send({ name: 'Acme 2' }).expect(200);
+  await request(app).post(`/api/clients/${made.body.id}/documents`).set(bearer(plain)).attach('file', Buffer.from('hello'), 'note.txt').expect(201);
+  const rows = await rowsOf("action IN ('client.created','client.updated','document.uploaded')");
+  assert.deepEqual(rows.map(r => r.action), ['client.created', 'client.updated', 'document.uploaded']);
+  assert.equal(rows[0].user_email, 'tech@example.com');
+  assert.equal(rows[2].detail.name, 'note.txt');
+});
+
 test('vault: reveal and copy are logged per entry, who/when but never the secret; admins see the history', skipWithoutPg, async () => {
   const c = (await db.pool.query("INSERT INTO clients (name) VALUES ('Vault Co') RETURNING id")).rows[0];
   const created = await request(app).post(`/api/clients/${c.id}/passwords`).set(bearer(plain))
     .send({ label: 'Router', username: 'root', password: 'S3cr3t-Value!' }).expect(201);
   const pid = created.body.id;
-  await request(app).post(`/api/clients/${c.id}/passwords/${pid}/reveal`).set(bearer(plain)).send({ action: 'reveal' }).expect(200);
+  // The secret never travels in list/create/update responses, only through the audited reveal.
+  assert.ok(!JSON.stringify(created.body).includes('S3cr3t-Value!') && !('encrypted_password' in created.body));
+  const listed = await request(app).get(`/api/clients/${c.id}/passwords`).set(bearer(plain)).expect(200);
+  assert.ok(!JSON.stringify(listed.body).includes('S3cr3t-Value!'));
+  assert.ok(!('password' in listed.body[0]) && !('encrypted_password' in listed.body[0]));
+  assert.equal(listed.body[0].has_password, true);
+  const shown = await request(app).post(`/api/clients/${c.id}/passwords/${pid}/reveal`).set(bearer(plain)).send({ action: 'reveal' }).expect(200);
+  assert.equal(shown.body.password, 'S3cr3t-Value!');
+  assert.equal(shown.headers['cache-control'], 'no-store');
   await request(app).post(`/api/clients/${c.id}/passwords/${pid}/reveal`).set(bearer(plain)).send({ action: 'copy' }).expect(200);
   await request(app).post(`/api/clients/${c.id}/passwords/${pid}/reveal`).set(bearer(plain)).send({}).expect(200);
   assert.equal((await request(app).post(`/api/clients/${c.id}/passwords/99999/reveal`).set(bearer(plain)).send({})).status, 404);
@@ -160,6 +178,8 @@ test('vault: reveal and copy are logged per entry, who/when but never the secret
 
   // Editing the secret is logged as a change, not its value.
   await request(app).put(`/api/clients/${c.id}/passwords/${pid}`).set(bearer(plain)).send({ label: 'Router', password: 'N3w-Secret-Val' }).expect(200);
+  const again = await request(app).post(`/api/clients/${c.id}/passwords/${pid}/reveal`).set(bearer(plain)).send({}).expect(200);
+  assert.equal(again.body.password, 'N3w-Secret-Val');
   assert.ok(!JSON.stringify(await rowsOf()).includes('N3w-Secret-Val'));
 });
 
