@@ -18,7 +18,7 @@ Si le **service de mise à jour** est activé, l'onglet Système affiche un bout
 
 **Ce qui se passe quand vous cliquez** (vous devez retaper **votre mot de passe**) :
 
-1. une **sauvegarde** de la base de données et des documents est écrite dans le dossier `backups/` de l'installation ;
+1. une **sauvegarde** de la base de données et des documents est écrite dans le dossier `backups/` de l'installation (les fichiers appartiennent à `root`, car le service tourne en root : utilisez `sudo` pour les copier ou les supprimer) ;
 2. `TECHIBASE_VERSION` est changée dans `.env` (l'ancien fichier est gardé en `.env.bak`), les nouvelles images sont téléchargées et l'application est recréée (environ une minute d'indisponibilité) ;
 3. le service vérifie que la nouvelle version répond ;
 4. **si elle ne démarre pas, l'ancienne version est remise automatiquement** et l'échec est expliqué. Le bouton **Revenir à vX.Y.Z** permet aussi un retour manuel (les données ne sont pas restaurées : voir [Sauvegarde et restauration](installation.md#sauvegarde-et-restauration) si une version a modifié la base).

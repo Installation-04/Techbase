@@ -29,7 +29,8 @@ show_logs() { (cd "$INSTALL" 2>/dev/null && echo '--- updater state:' && docker 
 cleanup() {
   (cd "$INSTALL" 2>/dev/null && docker compose down -v >/dev/null 2>&1) || true
   docker rm -f tb-e2e-registry tb-e2e-releases >/dev/null 2>&1 || true
-  rm -rf "$WORK"
+  # The updater runs as root, so the backups it wrote belong to root.
+  rm -rf "$WORK" 2>/dev/null || sudo -n rm -rf "$WORK" 2>/dev/null || docker run --rm -v "$WORK:/w" "${BASE:-alpine}" rm -rf /w/install >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -145,7 +146,8 @@ pass
 step "a backup was written first, and the data survived"
 ls "$INSTALL"/backups/pre-update-0.0.1-to-0.0.2-*.tar.gz >/dev/null 2>&1 || fail "no backup file"
 [ "$(stat -c %s "$INSTALL"/backups/pre-update-0.0.1-to-0.0.2-*.tar.gz)" -gt 1000 ] || fail "backup is empty"
-tar -tzf "$INSTALL"/backups/pre-update-0.0.1-to-0.0.2-*.tar.gz | grep -qx db.sql || fail "backup has no db.sql"
+tar -tzf "$INSTALL"/backups/pre-update-0.0.1-to-0.0.2-*.tar.gz > "$WORK/backup.list" || fail "backup is not a valid archive"
+grep -qx db.sql "$WORK/backup.list" || fail "backup has no db.sql"
 [ "$(survived)" = "1" ] || fail "the client is gone"; pass
 
 step "roll back to 0.0.1 through the admin API"
