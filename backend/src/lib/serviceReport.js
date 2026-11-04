@@ -83,13 +83,14 @@ function parseSignatureDataUrl(value) {
 // accents, œ, €, « » are in it). Anything else (CJK, Cyrillic, emoji) would come
 // out as unrelated garbage glyphs, so it is replaced by "?" instead; control
 // characters other than newline and tab are dropped.
+// Spelled out instead of using TextDecoder('windows-1252'): depending on the
+// Node/ICU build that decoder maps 0x80-0x9F to control characters, which
+// would drop œ, € and Œ.
 const WIN_1252 = (() => {
-  const dec = new TextDecoder('windows-1252');
   const set = new Set();
-  for (let b = 0x20; b <= 0xff; b++) {
-    const ch = dec.decode(Uint8Array.of(b));
-    if (!/[\u0080-\u009f]/.test(ch)) set.add(ch);
-  }
+  for (let c = 0x20; c <= 0x7e; c++) set.add(String.fromCharCode(c));
+  for (let c = 0xa0; c <= 0xff; c++) set.add(String.fromCharCode(c));
+  for (const ch of '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ') set.add(ch);
   return set;
 })();
 function pdfText(value) {
