@@ -1,5 +1,7 @@
 # TechIBase web front end: React build served by nginx, which also proxies /api to the backend.
-FROM node:20-alpine AS build
+# The build only produces static files: run it on the builder's own architecture (never under
+# QEMU emulation, where npm/esbuild can be very slow or hang); only the nginx stage is per-platform.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci

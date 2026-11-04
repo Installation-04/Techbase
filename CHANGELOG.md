@@ -4,6 +4,7 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- Les images multi-architectures sont construites sans émulation pour l'étape de construction de l'interface (npm et Vite tournent sur l'architecture native du serveur de construction) : une publication pouvait rester bloquée pendant des dizaines de minutes sous émulation QEMU (version 0.0.10).
 ## [0.0.13] - Mises à jour en un clic
 
 - **Mises à jour en un clic (facultatif)** : un nouveau conteneur « updater » (image `ghcr.io/installation-04/techbase-updater`) permet de mettre à jour TechIBase depuis l'onglet Système du panneau d'administration : sauvegarde d'abord, changement de `TECHIBASE_VERSION`, téléchargement et redémarrage, vérification, **retour automatique** à l'ancienne version si la nouvelle ne démarre pas, et bouton « Revenir à vX.Y.Z ». Désactivé par défaut ; activé par `./install.sh --with-updater` ; réservé aux installations par images publiées. Il reçoit l'accès au socket Docker (équivalent à root sur le serveur) : il est isolé, protégé par un secret, n'accepte que trois actions fixes et l'administrateur doit retaper son mot de passe. Chaque demande et son résultat sont inscrits dans un journal d'audit (`audit_log`). Testé de bout en bout avec Docker réel en CI (`scripts/updater-e2e.sh`).

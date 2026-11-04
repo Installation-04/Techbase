@@ -6,12 +6,17 @@
 # The base is the official Debian-based postgres:15 image on purpose: existing
 # TechIBase databases were created by it, so the same glibc collation applies
 # and a data directory moves over unchanged.
-FROM node:20-bookworm-slim AS web-build
+# The web build only produces static files: run it on the builder's own architecture (never
+# under QEMU emulation, where npm/esbuild can be very slow or hang).
+FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS web-build
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
 RUN npm run build
+
+# Node itself, for the target architecture (the web build above may run on another one).
+FROM node:20-bookworm-slim AS node-bin
 
 FROM node:20-bookworm-slim AS api-deps
 WORKDIR /app
@@ -32,7 +37,7 @@ RUN apt-get update \
     && sed -i '/^[[:space:]]*gzip on;/d' /etc/nginx/nginx.conf # our conf.d file turns gzip on itself
 
 # Node comes from the official image rather than a distribution package.
-COPY --from=web-build /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-bin /usr/local/bin/node /usr/local/bin/node
 
 WORKDIR /app
 COPY --from=api-deps /app/node_modules ./node_modules
