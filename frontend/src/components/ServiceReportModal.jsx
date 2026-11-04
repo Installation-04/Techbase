@@ -11,6 +11,7 @@ export default function ServiceReportModal({ workOrder, onClose }) {
   const [report, setReport] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [padEmpty, setPadEmpty] = useState(true);
+  const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -35,12 +36,17 @@ export default function ServiceReportModal({ workOrder, onClose }) {
       .finally(() => setLoaded(true));
   }, [workOrder.id]);
 
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (k) => (e) => { setDirty(true); setForm(f => ({ ...f, [k]: e.target.value })); };
   const base = `/api/work-orders/${workOrder.id}/service-report`;
 
+  // Saving drops an existing signature when no new one is drawn (it covers the
+  // report's content). So when nothing changed since the last load/save,
+  // "Télécharger" and "Joindre" must reuse the stored report instead of
+  // re-saving it unsigned.
   const save = async () => {
     setError('');
     setInfo('');
+    if (report && !dirty && padEmpty) return report;
     const minutes = parseDuration(form.duration);
     if (form.duration.trim() && minutes === null) {
       setError('Durée non reconnue (exemples : 1h30, 45 min)');
@@ -69,6 +75,7 @@ export default function ServiceReportModal({ workOrder, onClose }) {
     try {
       const res = await axios.put(base, body);
       setReport(res.data);
+      setDirty(false);
       pad.current?.clear();
       return res.data;
     } catch (err) {
@@ -135,27 +142,27 @@ export default function ServiceReportModal({ workOrder, onClose }) {
           {!loaded && <p className="text-sm text-gray-500 dark:text-gray-400">Chargement…</p>}
 
           <div>
-            <label className={labelCls}>Travaux effectués</label>
-            <textarea rows={4} maxLength={10000} value={form.work_done} onChange={set('work_done')} className={inputCls} />
+            <label htmlFor="sr-work_done" className={labelCls}>Travaux effectués</label>
+            <textarea id="sr-work_done" rows={4} maxLength={10000} value={form.work_done} onChange={set('work_done')} className={inputCls} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Pièces utilisées</label>
-              <textarea rows={2} maxLength={5000} value={form.parts_used} onChange={set('parts_used')} className={inputCls} />
+              <label htmlFor="sr-parts_used" className={labelCls}>Pièces utilisées</label>
+              <textarea id="sr-parts_used" rows={2} maxLength={5000} value={form.parts_used} onChange={set('parts_used')} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Temps passé</label>
-              <input value={form.duration} onChange={set('duration')} placeholder="ex. 1h30" className={inputCls} />
+              <label htmlFor="sr-duration" className={labelCls}>Temps passé</label>
+              <input id="sr-duration" value={form.duration} onChange={set('duration')} placeholder="ex. 1h30" className={inputCls} />
             </div>
           </div>
           <div>
-            <label className={labelCls}>Observations</label>
-            <textarea rows={3} maxLength={10000} value={form.observations} onChange={set('observations')} className={inputCls} />
+            <label htmlFor="sr-observations" className={labelCls}>Observations</label>
+            <textarea id="sr-observations" rows={3} maxLength={10000} value={form.observations} onChange={set('observations')} className={inputCls} />
           </div>
 
           <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Signature du client</label>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Signature du client</span>
               <button type="button" onClick={() => pad.current?.clear()} className="text-xs text-blue-600 dark:text-blue-400 hover:underline p-1">Effacer</button>
             </div>
             {report?.has_signature && padEmpty && (
@@ -166,8 +173,8 @@ export default function ServiceReportModal({ workOrder, onClose }) {
             <SignaturePad ref={pad} onChange={setPadEmpty} />
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Faites signer le client avec le doigt ou la souris.</p>
             <div className="mt-3">
-              <label className={labelCls}>Nom du signataire</label>
-              <input value={form.signer_name} onChange={set('signer_name')} maxLength={255} className={inputCls} />
+              <label htmlFor="sr-signer_name" className={labelCls}>Nom du signataire</label>
+              <input id="sr-signer_name" value={form.signer_name} onChange={set('signer_name')} maxLength={255} className={inputCls} />
             </div>
           </div>
         </div>
