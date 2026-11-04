@@ -137,3 +137,15 @@ test('backup then restore brings back the database AND the uploaded documents', 
     await db.drop();
   }
 });
+
+test('multi-arch builds never run npm/vite under QEMU, and never copy a build-platform node into the image', () => {
+  const root = read('Dockerfile');
+  const front = read('frontend/Dockerfile');
+  assert.match(root, /FROM --platform=\$BUILDPLATFORM node:[^\n]* AS web-build/);
+  assert.match(front, /FROM --platform=\$BUILDPLATFORM node:[^\n]* AS build/);
+  // The web build may run on another architecture than the image, so the node binary of the
+  // final image must come from a stage on the TARGET platform, not from web-build.
+  assert.match(root, /COPY --from=node-bin \/usr\/local\/bin\/node/);
+  assert.doesNotMatch(root, /COPY --from=web-build \/usr\/local\/bin\/node/);
+  assert.match(root, /FROM node:[^\n]* AS node-bin/);
+});
