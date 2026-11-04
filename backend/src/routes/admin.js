@@ -147,14 +147,23 @@ router.get('/admin/audit', async (req, res) => {
 });
 
 router.get('/admin/audit/export', async (req, res) => {
+  let started = false;
   try {
-    const { csv, count } = await exportAudit(req.app.locals.db, req.query);
+    // Rows are streamed in chunks; headers go out with the first one, after the filters validated.
+    const write = chunk => new Promise(resolve => {
+      if (!started) {
+        started = true;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="journal-audit.csv"');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+      }
+      if (res.write(chunk)) resolve(); else { res.once('drain', resolve); res.once('close', resolve); }
+    });
+    const count = await exportAudit(req.app.locals.db, req.query, write);
     await audit(req, 'audit.exported', { rows: count, filters: { ...req.query } });
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="journal-audit.csv"');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(csv);
+    res.end();
   } catch (err) {
+    if (started) return res.destroy(err); // a truncated download must not look complete
     sendError(res, err);
   }
 });

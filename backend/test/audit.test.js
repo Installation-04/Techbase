@@ -276,3 +276,28 @@ test('the daily job purges the audit log and a purge failure does not break the 
   const origErr = console.error; console.error = () => {};
   try { await runDailyJobs(failing); } finally { console.error = origErr; }
 });
+
+// ---- QA regressions ----
+
+test('absurd ?page= values are clamped instead of overflowing OFFSET (was a 500)', skipWithoutPg, async () => {
+  await seed();
+  for (const page of ['99999999999999999999', '1e21', '-5', 'abc']) {
+    const res = await request(app).get('/api/admin/audit').query({ page }).set(bearer(admin));
+    assert.equal(res.status, 200, `page=${page}`);
+  }
+});
+
+test('exportAudit streams in keyset chunks, newest first, and honours the limit', skipWithoutPg, async () => {
+  await db.pool.query("INSERT INTO audit_log (user_email, action) SELECT 'bulk' || g || '@example.com', 'user.created' FROM generate_series(1, 25) g");
+  const chunks = [];
+  const n = await auditLib.exportAudit(db.pool, { action: 'user.created' }, async c => { chunks.push(c); }, { chunk: 10 });
+  assert.equal(n, 25);
+  assert.equal(chunks.length, 1 + 3, 'header + 3 chunks (10, 10, 5)');
+  const lines = chunks.join('').split('\r\n').filter(Boolean);
+  assert.equal(lines.length, 26);
+  const ids = lines.slice(1).map(l => Number(l.split(',')[0]));
+  assert.deepEqual(ids, [...ids].sort((a, b) => b - a), 'newest first, no duplicates');
+  assert.equal(new Set(ids).size, 25);
+  const capped = await auditLib.exportAudit(db.pool, {}, async () => {}, { chunk: 10, limit: 12 });
+  assert.equal(capped, 12);
+});

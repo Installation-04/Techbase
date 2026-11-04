@@ -122,8 +122,11 @@ function buildFilter(query) {
 }
 
 const COLUMNS = 'id, created_at, user_id, user_email, action, detail, ip, user_agent, target_type, target_id';
+const MAX_PAGE = 100000; // keeps OFFSET far below the bigint range (a huge ?page= used to be a 500)
 
-async function listAudit(db, query, { page = 1, pageSize = 50 } = {}) {
+async function listAudit(db, query, opts = {}) {
+  const pageSize = Math.min(200, Math.max(1, Math.trunc(Number(opts.pageSize)) || 50));
+  const page = Math.min(MAX_PAGE, Math.max(1, Math.trunc(Number(opts.page)) || 1));
   const f = buildFilter(query);
   const total = (await db.query(`SELECT count(*)::int AS n FROM audit_log ${f.sql}`, f.params)).rows[0].n;
   const rows = (await db.query(
@@ -143,21 +146,42 @@ function csvCell(value) {
 
 const CSV_HEADER = ['id', 'date', 'utilisateur_id', 'utilisateur', 'action', 'detail', 'ip', 'agent', 'cible_type', 'cible_id'];
 
-function toCsv(rows) {
-  const lines = [CSV_HEADER.join(',')];
-  for (const r of rows) {
-    const date = r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at;
-    lines.push([r.id, date, r.user_id, r.user_email, r.action, r.detail, r.ip, r.user_agent, r.target_type, r.target_id].map(csvCell).join(','));
-  }
-  return `﻿${lines.join('\r\n')}\r\n`;
+function csvLine(r) {
+  const date = r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at;
+  return [r.id, date, r.user_id, r.user_email, r.action, r.detail, r.ip, r.user_agent, r.target_type, r.target_id].map(csvCell).join(',');
 }
+
+// UTF-8 BOM so Excel opens accents correctly.
+const csvHeader = () => `﻿${CSV_HEADER.join(',')}\r\n`;
+const csvRows = rows => rows.map(r => `${csvLine(r)}\r\n`).join('');
+const toCsv = rows => csvHeader() + csvRows(rows);
 
 const EXPORT_LIMIT = 50000;
+const EXPORT_CHUNK = 2000;
 
-async function exportAudit(db, query) {
+// Streams the filtered log to `write(string)` in keyset-paginated chunks (newest first), so a
+// 50k-row export never holds more than one chunk in memory. Filters are validated before the
+// first byte is written (throws {status:400}). Resolves to the number of rows sent.
+async function exportAudit(db, query, write, { limit = EXPORT_LIMIT, chunk = EXPORT_CHUNK } = {}) {
   const f = buildFilter(query);
-  const { rows } = await db.query(`SELECT ${COLUMNS} FROM audit_log ${f.sql} ORDER BY created_at DESC, id DESC LIMIT ${EXPORT_LIMIT}`, f.params);
-  return { csv: toCsv(rows), count: rows.length };
+  await write(csvHeader());
+  let sent = 0; let lastId = null;
+  while (sent < limit) {
+    const params = [...f.params]; let sql = f.sql;
+    if (lastId != null) {
+      params.push(lastId);
+      sql += `${sql ? ' AND' : 'WHERE'} id < $${params.length}`;
+    }
+    const size = Math.min(chunk, limit - sent);
+    params.push(size);
+    const { rows } = await db.query(`SELECT ${COLUMNS} FROM audit_log ${sql} ORDER BY id DESC LIMIT $${params.length}`, params);
+    if (!rows.length) break;
+    await write(csvRows(rows));
+    sent += rows.length;
+    lastId = rows[rows.length - 1].id;
+    if (rows.length < size) break;
+  }
+  return sent;
 }
 
-module.exports = { audit, sanitize, retentionDays, purgeAudit, buildFilter, listAudit, exportAudit, toCsv, csvCell, DEFAULT_RETENTION_DAYS, EXPORT_LIMIT };
+module.exports = { audit, sanitize, retentionDays, purgeAudit, buildFilter, listAudit, exportAudit, toCsv, csvCell, DEFAULT_RETENTION_DAYS, EXPORT_LIMIT, MAX_PAGE };
