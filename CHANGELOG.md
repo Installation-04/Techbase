@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+## [0.0.12] - Panneau d'administration
+
 - **Panneau d'administration** : une entrée **Administration** (administrateurs seulement) avec trois onglets. **Système** : version installée, dernière version publiée sur GitHub avec ses notes, type d'installation et commandes de mise à jour adaptées. **Utilisateurs** : la gestion des comptes, qui était la page « Utilisateurs » (`/users` redirige vers l'onglet). **Santé** : base de données, durée de fonctionnement, dernier passage des tâches quotidiennes, courriels et SSO, nombre de données, documents et espace disque. La vérification de version peut être désactivée avec `UPDATE_CHECK=false`. Nouvelle table `app_status` (créée automatiquement).
 ## [0.0.11] - Un seul conteneur
 
