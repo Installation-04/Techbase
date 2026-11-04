@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- **« Ma journée » (mobile)** : une page `/journee` (entrée « Ma journée » du menu) liste, pour le technicien connecté, ses bons de service en cours, du jour et en retard, plus ceux terminés aujourd'hui, avec le client, l'adresse (ouvre la carte), le téléphone (appel en un geste), les boutons **Démarrer** / **Terminer**, une note rapide ajoutée au journal du client et un lien vers les bons du client. Sur téléphone, un utilisateur non administrateur arrive sur cette page à l'ouverture de l'application. Nouvelles routes `GET /api/work-orders/my-day` et `POST /api/work-orders/:id/status` (réservée à la personne assignée ou à un administrateur).
+
 ## [0.0.14] - Mises à jour en un clic (publication corrigée)
 
 - **La version 0.0.13 n'a pas été publiée** : la construction de l'image de l'interface s'est bloquée sous émulation ; seules trois de ses images existent sur le registre, sans étiquette ni release GitHub. Cette version 0.0.14 contient tout ce que devait contenir la 0.0.13 (mises à jour en un clic, ci-dessous).

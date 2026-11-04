@@ -894,7 +894,7 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [client, setClient] = useState(null);
-  const [activeTab, setActiveTab] = useState('equipment');
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'equipment');
   const [editModal, setEditModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const visibleTabs = TABS.filter(t => !t.adminOnly || user?.role === 'admin');
