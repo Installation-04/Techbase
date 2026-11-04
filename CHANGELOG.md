@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+## [0.0.10] - Installation en une commande, documentation, mode sombre et port 26591
+
 - **Mode sombre** : un bouton dans l'en-tête (☀️ / 🌙 / automatique) choisit le thème clair, sombre ou celui du système ; le choix est mémorisé dans le navigateur et appliqué avant l'affichage, sans flash. Toutes les pages, fenêtres et formulaires sont adaptés ; le thème clair est inchangé.
 - **Wiki GitHub synchronisé avec `docs/`** : un workflow publie la documentation dans l'onglet Wiki du dépôt à chaque changement de `docs/` sur `main` (noms de pages et liens adaptés, captures non dupliquées). `docs/` reste la source unique. Il faut d'abord activer les Wikis et créer une première page, une seule fois (voir `docs/versions-et-mises-a-jour.md`) ; d'ici là, le workflow n'affiche qu'un avertissement.
 - **Port par défaut : 26591 au lieu de 80.** L'application web est maintenant publiée sur le port `26591` (`HTTP_PORT`), un port volontairement peu courant qui n'entre pas en conflit avec un autre service ; l'adresse d'une nouvelle installation est `http://localhost:26591`. `install.sh` l'affiche à la fin. **Mise à jour** : une installation existante garde son port, car son `.env` contient déjà `HTTP_PORT=80` (la commande `get-techibase.sh` ne modifie jamais le `.env`) ; seul un `.env` sans ligne `HTTP_PORT` passe de 80 à 26591 — ajoutez `HTTP_PORT=80` pour garder l'ancien port. Sur un nouveau serveur, ouvrez le port 26591 dans le pare-feu. Le test de bout en bout (`scripts/docker-smoke.sh`) et le workflow de release suivent le port du `.env`.
