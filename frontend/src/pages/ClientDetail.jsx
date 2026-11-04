@@ -265,12 +265,12 @@ function PasswordsTab({ clientId }) {
       {accessError && <p className="text-red-600 dark:text-red-400 text-sm mb-3">{accessError}</p>}
       <div className="space-y-3">
         {items.map(item => (
-          <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 flex items-start justify-between">
-            <div>
+          <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="min-w-0">
               <p className="font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
               {item.username && <p className="text-sm text-gray-500 dark:text-gray-400">Utilisateur: {item.username}</p>}
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm font-mono text-gray-700 dark:text-gray-200">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                <p className="text-sm font-mono break-all text-gray-700 dark:text-gray-200">
                   {secrets[item.id] !== undefined ? secrets[item.id] : '••••••••'}
                 </p>
                 <button
@@ -301,7 +301,7 @@ function PasswordsTab({ clientId }) {
               )}
               {item.url && <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 dark:text-blue-400 hover:underline mt-1 block">{item.url}</a>}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button onClick={() => setModal({ ...item, password: '' })} className="px-3 py-1 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800">Modifier</button>
               <button onClick={async () => { if (confirm('Supprimer ?')) { await axios.delete(`/api/clients/${clientId}/passwords/${item.id}`); fetch(); } }} className="px-3 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded">Supprimer</button>
             </div>
