@@ -1,0 +1,11 @@
+# Run the published, versioned all-in-one image instead of building it.
+# Used together with docker-compose.single.yml; the release bundle's .env sets:
+#
+#   TECHIBASE_VERSION=0.0.10
+#   COMPOSE_FILE=docker-compose.single.yml:docker-compose.single.release.yml
+#
+# Upgrade: change TECHIBASE_VERSION, then `docker compose pull && docker compose up -d`.
+services:
+  techibase:
+    image: ${TECHIBASE_REGISTRY:-ghcr.io/installation-04}/techbase:${TECHIBASE_VERSION:?TECHIBASE_VERSION is not set in .env (for example 0.0.10, or latest)}
+    build: !reset null

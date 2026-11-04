@@ -31,7 +31,9 @@ fail() { echo "FAIL"; echo "    -> $1" >&2; exit 1; }
 json() { node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const j=JSON.parse(s);console.log($1)})"; }
 api() { curl -fsS -H "Authorization: Bearer $TOKEN" "$@"; }
 
-echo "Smoke test against $BASE"
+# One all-in-one container (docker-compose.single.yml) or the four-container stack?
+if $COMPOSE config --services 2>/dev/null | grep -qx techibase; then SINGLE=1; else SINGLE=0; fi
+if [ "$SINGLE" = 1 ]; then echo "Smoke test against $BASE (all-in-one container)"; else echo "Smoke test against $BASE"; fi
 
 step "API answers through nginx (/api/health)"
 [ "$(curl -fsS "$BASE/api/health" | json j.status)" = "ok" ] && pass || fail "health check did not return ok"
@@ -41,10 +43,17 @@ if curl -sS -m 3 http://localhost:3001/api/health >/dev/null 2>&1; then fail "po
 
 step "backend and scheduler processes run as an unprivileged user"
 # `docker exec` shells start as root, so inspect the app process itself.
-for svc in backend scheduler; do
-  OWNER="$($COMPOSE exec -T "$svc" sh -c "ps -o user= -o args= | awk '\$2==\"node\" {print \$1; exit}'")"
-  [ -n "$OWNER" ] && [ "$OWNER" != "root" ] || fail "$svc app process runs as '${OWNER:-unknown}'"
-done
+if [ "$SINGLE" = 1 ]; then
+  for script in index.js scheduler.js; do
+    OWNER="$($COMPOSE exec -T techibase sh -c "ps -eo user=,args= | awk '\$2==\"node\" && \$3==\"src/$script\" {print \$1; exit}'")"
+    [ -n "$OWNER" ] && [ "$OWNER" != "root" ] || fail "node src/$script runs as '${OWNER:-unknown}'"
+  done
+else
+  for svc in backend scheduler; do
+    OWNER="$($COMPOSE exec -T "$svc" sh -c "ps -o user= -o args= | awk '\$2==\"node\" {print \$1; exit}'")"
+    [ -n "$OWNER" ] && [ "$OWNER" != "root" ] || fail "$svc app process runs as '${OWNER:-unknown}'"
+  done
+fi
 pass
 
 step "app shell: security headers and no-cache on index.html"
@@ -96,16 +105,25 @@ if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
   [ "$(curl -fsS "$BASE/api/auth/providers" | json j.google)" = "true" ] && pass || fail "GOOGLE_CLIENT_ID not passed through"
 fi
 
+if [ "$SINGLE" = 1 ]; then
+  step "techibase-backup produces a valid archive with the database and uploads"
+  $COMPOSE exec -T techibase techibase-backup > "$TMP/backup.tar.gz" || fail "techibase-backup failed"
+  tar -tzf "$TMP/backup.tar.gz" > "$TMP/backup.list" || fail "backup is not a valid .tar.gz"
+  grep -qx 'db.sql' "$TMP/backup.list" && grep -q '^uploads/' "$TMP/backup.list" || fail "backup lacks db.sql or uploads/"
+  pass
+fi
+
 step "scheduler job creates one preventive work order"
 DUE="$(date -d '+3 days' +%F)"
 api -X POST "$BASE/api/clients/$CLIENT_ID/equipment" -H 'Content-Type: application/json' \
   -d "{\"name\":\"$BOILER\",\"next_maintenance\":\"$DUE\"}" >/dev/null
-$COMPOSE exec -T scheduler node src/scheduler.js --once >"$TMP/sched.log" 2>&1 || { cat "$TMP/sched.log"; fail "scheduler --once failed"; }
+run_scheduler_once() { if [ "$SINGLE" = 1 ]; then $COMPOSE exec -T techibase techibase-run node src/scheduler.js --once; else $COMPOSE exec -T scheduler node src/scheduler.js --once; fi; }
+run_scheduler_once >"$TMP/sched.log" 2>&1 || { cat "$TMP/sched.log"; fail "scheduler --once failed"; }
 COUNT="$(api "$BASE/api/work-orders" | json "j.filter(w => w.title === 'Maintenance préventive — $BOILER').length")"
 [ "$COUNT" = "1" ] && pass || fail "expected 1 work order, found $COUNT"
 
 step "running the scheduler again does not duplicate it"
-$COMPOSE exec -T scheduler node src/scheduler.js --once >/dev/null 2>&1
+run_scheduler_once >/dev/null 2>&1
 COUNT="$(api "$BASE/api/work-orders" | json "j.filter(w => w.title === 'Maintenance préventive — $BOILER').length")"
 [ "$COUNT" = "1" ] && pass || fail "expected 1 work order after rerun, found $COUNT"
 

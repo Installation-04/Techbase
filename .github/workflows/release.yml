@@ -111,9 +111,9 @@ jobs:
             if [ "$EVENT" != "push" ] && git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null 2>&1; then
               echo "::error::The tag v$version already exists; versions are never re-published"; exit 1
             fi
-            for image in backend frontend; do
-              if image_exists "ghcr.io/$owner/techbase-$image:$version"; then
-                echo "::error::ghcr.io/$owner/techbase-$image:$version already exists; versions are never overwritten"; exit 1
+            for image in techbase-backend techbase-frontend techbase; do
+              if image_exists "ghcr.io/$owner/$image:$version"; then
+                echo "::error::ghcr.io/$owner/$image:$version already exists; versions are never overwritten"; exit 1
               fi
             done
           fi
@@ -221,8 +221,70 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  # The all-in-one image (web + API + scheduler + PostgreSQL in one container), built from
+  # the root Dockerfile and started through docker-compose.single.release.yml.
+  build-test-single:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      REGISTRY_REPO: ${{ needs.prepare.outputs.registry_repo }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: actions/setup-node@v4 # the smoke script parses JSON with node
+        with:
+          node-version: 20
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the all-in-one image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          build-args: TECHIBASE_VERSION=${{ needs.prepare.outputs.version }}
+          tags: ${{ needs.prepare.outputs.registry_repo }}/techbase:${{ needs.prepare.outputs.version }}
+          cache-from: type=gha,scope=single
+          cache-to: type=gha,scope=single,mode=max
+      - name: Configure the install the way the release bundle does
+        run: |
+          cp .env.example .env
+          sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^GOOGLE_CLIENT_ID=.*/GOOGLE_CLIENT_ID=ci-client-id/" .env
+          sed -i "s/^GOOGLE_CLIENT_SECRET=.*/GOOGLE_CLIENT_SECRET=ci-client-secret/" .env
+          sed -i "s/^# TECHIBASE_VERSION=.*/TECHIBASE_VERSION=$VERSION/" .env
+          sed -i "s/^# COMPOSE_FILE=.*/COMPOSE_FILE=docker-compose.single.yml:docker-compose.single.release.yml/" .env
+          echo "TECHIBASE_REGISTRY=$REGISTRY_REPO" >> .env
+          grep -q '^COMPOSE_FILE=docker-compose.single.yml:docker-compose.single.release.yml$' .env
+      - name: The stack runs the image that was just built, and builds nothing
+        run: |
+          images="$(docker compose config --images | sort -u)"
+          echo "$images"
+          test "$(docker compose config | grep -c '^ *build:')" = "0"
+          echo "$images" | grep -qx "$REGISTRY_REPO/techbase:$VERSION"
+      - name: Start it (nothing is pulled, the image is the one just built)
+        run: docker compose up -d --pull never --wait --wait-timeout 300
+      - name: The API and the sidebar report the release version
+        run: |
+          PORT="$(grep -E '^HTTP_PORT=' .env | tail -n 1 | cut -d= -f2)"
+          test "$(curl -fsS "http://localhost:${PORT}/api/health" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')" = "$VERSION"
+          curl -fsS "http://localhost:${PORT}/" | grep -o '/assets/index-[^"]*\.js' | head -1 | xargs -I{} curl -fsS "http://localhost:${PORT}{}" | grep -qF "\"$VERSION\""
+      - name: Smoke test
+        run: scripts/docker-smoke.sh --restart
+        env:
+          GOOGLE_CLIENT_ID: ci-client-id
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail 150
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
   publish:
-    needs: [prepare, ci, build-test]
+    needs: [prepare, ci, build-test, build-test-single]
     if: needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -232,12 +294,15 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        image: [backend, frontend]
+        include:
+          - { image: backend, context: ./backend, name: techbase-backend }
+          - { image: frontend, context: ./frontend, name: techbase-frontend }
+          - { image: single, context: ., name: techbase }
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       SHA: ${{ needs.prepare.outputs.sha }}
       TAGS: ${{ needs.prepare.outputs.tags }}
-      IMAGE: ${{ needs.prepare.outputs.registry_repo }}/techbase-${{ matrix.image }}
+      IMAGE: ${{ needs.prepare.outputs.registry_repo }}/${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -260,13 +325,14 @@ jobs:
       - name: Build and push (amd64 + arm64)
         uses: docker/build-push-action@v6
         with:
-          context: ./${{ matrix.image }}
+          context: ${{ matrix.context }}
+          build-args: TECHIBASE_VERSION=${{ needs.prepare.outputs.version }}
           platforms: linux/amd64,linux/arm64
           push: true
           provenance: false
           tags: ${{ steps.refs.outputs.list }}
           labels: |
-            org.opencontainers.image.title=techbase-${{ matrix.image }}
+            org.opencontainers.image.title=${{ matrix.name }}
             org.opencontainers.image.description=TechIBase ${{ matrix.image }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
@@ -307,7 +373,8 @@ jobs:
             echo "## Images Docker"
             echo
             echo '```bash'
-            echo "docker pull $REGISTRY_REPO/techbase-backend:$VERSION"
+            echo "docker pull $REGISTRY_REPO/techbase:$VERSION            # tout-en-un (recommandé)"
+            echo "docker pull $REGISTRY_REPO/techbase-backend:$VERSION    # ou la pile à quatre conteneurs :"
             echo "docker pull $REGISTRY_REPO/techbase-frontend:$VERSION"
             echo '```'
             echo
@@ -316,7 +383,9 @@ jobs:
 
           bundle="techibase-v$VERSION-docker"
           mkdir -p "$bundle/backend/db" "$bundle/scripts"
-          cp docker-compose.yml docker-compose.release.yml docker-compose.https.yml Caddyfile install.sh "$bundle/"
+          cp docker-compose.yml docker-compose.release.yml docker-compose.https.yml \
+            docker-compose.single.yml docker-compose.single.release.yml docker-compose.single.https.yml \
+            Caddyfile Caddyfile.single install.sh "$bundle/"
           cp backend/db/init.sql "$bundle/backend/db/"
           cp scripts/docker-smoke.sh "$bundle/scripts/"
           cp .env.example "$bundle/.env.example"

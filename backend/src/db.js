@@ -15,9 +15,11 @@ function createPool() {
   // NETLIFY_DATABASE_URL — no SDK call needed (and @netlify/database's
   // getConnectionString() reads the older NETLIFY_DB_URL name, which
   // Netlify no longer sets, so it always threw here).
-  const netlifyConnectionString = process.env.NETLIFY_DATABASE_URL || process.env.NETLIFY_DB_URL;
-  if (netlifyConnectionString) {
-    return new Pool({ connectionString: netlifyConnectionString });
+  // DATABASE_URL is the generic form (an external database for the all-in-one
+  // Docker image, or any hosted Postgres).
+  const connectionString = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.NETLIFY_DB_URL;
+  if (connectionString) {
+    return new Pool({ connectionString });
   }
   return new Pool({
     host: process.env.DB_HOST || 'localhost',

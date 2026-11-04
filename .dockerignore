@@ -1,0 +1,11 @@
+# Build context of the all-in-one image (Dockerfile at the repo root).
+.git
+**/node_modules
+frontend/dist
+backend/uploads
+backend/test
+frontend/test
+docs
+.env
+.env.*
+*.md
