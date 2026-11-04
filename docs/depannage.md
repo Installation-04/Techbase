@@ -14,7 +14,9 @@ docker compose logs backend          # un seul service
 |---|---|
 | `JWT_SECRET is not set in .env` | Le `.env` n'a pas de `JWT_SECRET`. Sur une nouvelle installation, lancez `./install.sh` ; sur une installation existante, **remettez la valeur d'origine** (la changer rend le coffre-fort illisible) |
 | `Docker ne répond pas` | Docker n'est pas démarré, ou votre utilisateur n'a pas le droit de l'utiliser : démarrez Docker, ou relancez avec `sudo` |
-| `port is already allocated` / le port 80 est pris | Un autre service utilise le port 80. Mettez `HTTP_PORT=8080` dans `.env`, puis `docker compose up -d` |
+| `port is already allocated` / le port 26591 est pris | Un autre service utilise déjà ce port (rare). Choisissez-en un autre : `HTTP_PORT=…` dans `.env`, puis `docker compose up -d` |
+| L'application répond sur le serveur mais pas depuis un autre poste | Le pare-feu du serveur bloque le port : ouvrez `26591` (ou la valeur de `HTTP_PORT`). L'adresse est `http://<adresse-du-serveur>:26591` |
+| Une ancienne installation répond encore sur le port 80 | Normal : son `.env` contient `HTTP_PORT=80`, conservé à la mise à jour. Changez-le si vous voulez le nouveau port par défaut |
 | `denied` ou `unauthorized` au téléchargement des images | Les images ne sont pas (encore) publiques : `docker login ghcr.io` avec un jeton GitHub ayant le droit `read:packages`, puis relancez |
 | `pull access denied` / `manifest unknown` pour une version | Cette version n'existe pas : vérifiez le numéro sur la [page des releases](https://github.com/Installation-04/Techbase/releases) |
 | Docker cherche à *construire* des images après un `-f` | Dans une installation par paquet de release, `-f` remplace `COMPOSE_FILE` : voir [Installation → HTTPS](installation.md#https-avec-un-nom-de-domaine) |

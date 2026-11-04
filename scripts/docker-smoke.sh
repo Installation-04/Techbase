@@ -11,7 +11,11 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-BASE="${BASE:-http://localhost:${HTTP_PORT:-80}}"
+# The port the web app is published on: $HTTP_PORT, else the one in .env, else the default.
+if [ -z "${HTTP_PORT:-}" ] && [ -f .env ]; then
+  HTTP_PORT="$(grep -E '^HTTP_PORT=' .env | tail -n 1 | cut -d= -f2 || true)"
+fi
+BASE="${BASE:-http://localhost:${HTTP_PORT:-26591}}"
 COMPOSE="${COMPOSE:-docker compose}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

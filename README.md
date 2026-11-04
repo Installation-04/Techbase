@@ -70,7 +70,7 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-L'application est accessible sur http://localhost
+L'application est accessible sur **http://localhost:26591**. Le port par défaut, 26591, est volontairement peu courant : il ne risque pas d'entrer en conflit avec un autre service (comme le 80 ou le 8080). Pour le changer, modifiez `HTTP_PORT` dans `.env` (par exemple `80` pour une adresse sans port), puis `docker compose up -d`.
 
 **Premier accès :** il n'y a plus de compte admin préconfiguré. Ouvrez l'application et créez un compte via « Créer un compte » sur l'écran de connexion — **le tout premier compte créé (local ou via SSO) devient automatiquement administrateur.** Tous les comptes suivants ont le rôle « Utilisateur » par défaut (modifiable ensuite par un admin dans Utilisateurs).
 
@@ -218,7 +218,7 @@ Copier `.env.example` en `.env` et adapter les valeurs (`./install.sh` le fait a
 
 | Service | Port |
 |---------|------|
-| Application web (nginx) | `80` (`HTTP_PORT`) — seul port publié par Docker Compose |
+| Application web (nginx) | `26591` par défaut (`HTTP_PORT`) — seul port publié par Docker Compose |
 | Caddy (HTTPS, optionnel) | `80` et `443` |
 | API (Express) | `3001`, interne uniquement : accessible via l'application web (`/api`), non publiée |
 | PostgreSQL | `5432`, interne uniquement |
@@ -263,7 +263,7 @@ Toute la plateforme tourne dans des conteneurs ; Netlify n'est pas nécessaire.
 | `db` | PostgreSQL 15 (volume `db_data`) |
 | `backend` | L'API Express. Exécutée par un utilisateur non privilégié ; les documents sont stockés dans le volume `uploads`. Non exposée à l'hôte : on n'y accède que via `frontend` |
 | `scheduler` | Les tâches quotidiennes : génération des bons de service préventifs et résumé par courriel aux admins (l'équivalent de la fonction planifiée Netlify) |
-| `frontend` | L'application web servie par nginx (gzip, cache long des fichiers fingerprintés, en-têtes de sécurité) ; seul point d'entrée, publié sur `HTTP_PORT` (80 par défaut) |
+| `frontend` | L'application web servie par nginx (gzip, cache long des fichiers fingerprintés, en-têtes de sécurité) ; seul point d'entrée, publié sur `HTTP_PORT` (26591 par défaut) |
 
 **Installation** : `./install.sh` (voir « Démarrage rapide »). Le script n'annonce « prêt » que lorsque tous les services sont réellement sains, et affiche l'état et les journaux sinon.
 
@@ -273,7 +273,7 @@ Toute la plateforme tourne dans des conteneurs ; Netlify n'est pas nécessaire.
 |----------|------|
 | `JWT_SECRET` | **Obligatoire.** Le démarrage échoue si elle est absente. ⚠️ Ne la changez pas sur une installation existante : elle sert aussi à chiffrer le coffre-fort de mots de passe |
 | `DB_PASSWORD`, `DB_NAME`, `DB_USER` | Accès à la base |
-| `HTTP_PORT` | Port publié par l'application (80) |
+| `HTTP_PORT` | Port publié par l'application (26591 par défaut ; `80` pour une adresse sans port) |
 | `TZ` | Fuseau horaire des conteneurs (ex. `America/Toronto`), qui détermine l'heure du planificateur |
 | `SCHEDULER_TIME` | Heure du passage quotidien du planificateur, `HH:MM` (défaut `06:00`, dans le fuseau `TZ`) |
 | `RUN_ON_START` | `true` pour aussi exécuter les tâches au démarrage du conteneur |

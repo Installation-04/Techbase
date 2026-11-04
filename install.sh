@@ -55,8 +55,10 @@ fi
 echo ""
 echo "=== TechIBase est prêt ! ==="
 PORT="$(grep -E '^HTTP_PORT=' .env 2>/dev/null | cut -d= -f2 || true)"
-if [ -n "${PORT:-}" ] && [ "$PORT" != "80" ]; then URL="http://localhost:$PORT"; else URL="http://localhost"; fi
+PORT="${PORT:-26591}"
+if [ "$PORT" = "80" ]; then URL="http://localhost"; else URL="http://localhost:$PORT"; fi
 echo "Application accessible sur : $URL"
+echo "(port $PORT ; pour le changer, modifiez HTTP_PORT dans .env puis lancez « docker compose up -d »)"
 echo ""
 echo "Premier accès : aucun compte n'est préconfiguré. Ouvrez l'application et"
 echo "créez un compte via « Créer un compte » — le tout premier compte créé"
