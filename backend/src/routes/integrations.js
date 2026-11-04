@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { serverError } = require('../lib/respond');
 const { encrypt, decrypt } = require('../lib/crypto');
+const { audit } = require('../lib/audit');
 const acumatica = require('../integrations/acumatica');
 
 // Separate salt from the client-password vault so a compromise of one
@@ -71,6 +72,7 @@ router.put('/integrations/acumatica/credentials', authenticate, validate({
          base_url = $2, username = $3, encrypted_password = $4, company = $5, branch = $6, updated_at = NOW()`,
       [req.user.id, base_url, username, encryptedPassword, company, branch || null]
     );
+    await audit(req, 'integration.acumatica.connected', { base_url, username, company }, { target: ['integration', 'acumatica'] });
     res.json({ connected: true });
   } catch (err) {
     serverError(res, err);
@@ -85,6 +87,7 @@ router.delete('/integrations/acumatica/credentials', authenticate, async (req, r
       "DELETE FROM user_integration_credentials WHERE user_id = $1 AND provider = 'acumatica'",
       [req.user.id]
     );
+    await audit(req, 'integration.acumatica.disconnected', {}, { target: ['integration', 'acumatica'] });
     res.json({ connected: false });
   } catch (err) {
     serverError(res, err);

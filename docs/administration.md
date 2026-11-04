@@ -89,8 +89,19 @@ Le conteneur `scheduler` exécute chaque jour la génération des [bons de servi
 | `SCHEDULER_TIME` | Heure du passage, `HH:MM`, 24 h (défaut `06:00`) |
 | `TZ` | Fuseau horaire de l'heure ci-dessus (`America/Toronto`…) |
 | `RUN_ON_START` | `true` pour exécuter aussi les tâches à chaque démarrage du conteneur |
+| `AUDIT_RETENTION_DAYS` | Durée de conservation du [journal d'audit](#journal-daudit), en jours (défaut `365`, `0` = tout garder) |
 
 `docker compose logs scheduler` indique la prochaine exécution. Pour déclencher tout de suite : `docker compose exec scheduler node src/scheduler.js --once` (sans risque : relancer ne crée aucun doublon).
+
+## Journal d'audit
+
+L'onglet **Journal d'audit** (administrateurs seulement) liste les événements sensibles, du plus récent au plus ancien : connexions réussies ou échouées (mot de passe et SSO), création / changement de rôle / changement de mot de passe / suppression d'utilisateurs, connexion ou déconnexion d'Acumatica, suppression de clients et de documents, téléchargement de documents, mises à jour de l'application et exports du journal.
+
+- **Filtres** : utilisateur (courriel ou numéro), famille d'actions, plage de dates (le jour de fin est inclus) et recherche libre (action, courriel, IP, détails). **Exporter en CSV** applique les mêmes filtres (50 000 lignes au plus) ; les cellules qui commencent par `=`, `+`, `-` ou `@` sont préfixées d'une apostrophe pour qu'un tableur ne les exécute pas comme formules.
+- **Coffre-fort de mots de passe** : chaque fois qu'une personne clique sur **Afficher** ou **Copier**, le journal retient qui, quelle entrée (identifiant et libellé) et quand. Le mot de passe n'est jamais enregistré. Dans la fiche client, les administrateurs voient aussi, par entrée, un bouton **Historique**. Le journal reflète les actions faites dans l'interface : la liste des mots de passe d'un client est toujours transmise au navigateur (masquée à l'écran), un accès direct à l'API n'est donc pas distingué d'une simple consultation de la liste.
+- **Adresse IP** : elle vient de la connexion, ou de l'en-tête `X-Forwarded-For` seulement pour le proxy de confiance configuré dans l'application (un saut, comme pour la limitation de débit). Derrière un autre montage, vérifiez que votre proxy inscrit bien l'adresse réelle du client.
+- **Conservation** : les tâches quotidiennes suppriment les entrées de plus de `AUDIT_RETENTION_DAYS` jours (défaut **365** ; `0` = tout conserver). Chaque purge laisse elle-même une entrée `audit.purged`. Exportez le journal avant de réduire cette durée si vous devez l'archiver.
+- Un échec d'écriture dans le journal est consigné dans les logs du serveur mais ne fait jamais échouer l'action de la personne.
 
 ## Sécurité : l'essentiel
 

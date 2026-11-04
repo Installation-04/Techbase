@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Users from './Users';
+import AuditLog from './AuditLog';
 import { MODE_LABELS, updateInstructions, formatBytes, formatDuration, plainNotes } from '../lib/adminInfo.mjs';
 
 const TABS = [
   { id: 'system', label: 'Système' },
   { id: 'users', label: 'Utilisateurs' },
   { id: 'health', label: 'Santé' },
+  { id: 'audit', label: "Journal d'audit" },
 ];
 
 function Card({ title, children, className = '' }) {
@@ -281,6 +283,7 @@ export default function Admin() {
       {tab === 'system' && <SystemTab />}
       {tab === 'users' && <Users />}
       {tab === 'health' && <HealthTab />}
+      {tab === 'audit' && <AuditLog />}
     </div>
   );
 }

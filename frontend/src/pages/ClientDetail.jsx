@@ -203,6 +203,18 @@ function PasswordsTab({ clientId }) {
   const [items, setItems] = useState([]);
   const [modal, setModal] = useState(null);
   const [visible, setVisible] = useState({});
+  const { user } = useAuth();
+  const [history, setHistory] = useState({}); // admins: entry id -> access log rows
+
+  // Tell the server a person unmasked/copied an entry (audit log). Never blocks the UI.
+  const logAccess = (id, action) => axios.post(`/api/clients/${clientId}/passwords/${id}/reveal`, { action }).catch(() => {});
+  const toggleHistory = async id => {
+    if (history[id]) return setHistory(h => ({ ...h, [id]: null }));
+    try {
+      const res = await axios.get(`/api/clients/${clientId}/passwords/${id}/audit`);
+      setHistory(h => ({ ...h, [id]: res.data }));
+    } catch { /* admin-only; ignore */ }
+  };
 
   const fetch = useCallback(async () => {
     const res = await axios.get(`/api/clients/${clientId}/passwords`);
@@ -235,12 +247,31 @@ function PasswordsTab({ clientId }) {
                   {visible[item.id] ? item.password : '••••••••'}
                 </p>
                 <button
-                  onClick={() => setVisible(v => ({ ...v, [item.id]: !v[item.id] }))}
+                  onClick={() => { if (!visible[item.id]) logAccess(item.id, 'reveal'); setVisible(v => ({ ...v, [item.id]: !v[item.id] })); }}
                   className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                 >
                   {visible[item.id] ? 'Masquer' : 'Afficher'}
                 </button>
+                <button
+                  onClick={() => { logAccess(item.id, 'copy'); navigator.clipboard?.writeText(item.password).catch(() => {}); }}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                >
+                  Copier
+                </button>
+                {user?.role === 'admin' && (
+                  <button onClick={() => toggleHistory(item.id)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    {history[item.id] ? "Masquer l'historique" : 'Historique'}
+                  </button>
+                )}
               </div>
+              {history[item.id] && (
+                <ul className="mt-2 text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
+                  {history[item.id].length === 0 && <li>Aucun accès enregistré.</li>}
+                  {history[item.id].map(h => (
+                    <li key={h.id}>{new Date(h.created_at).toLocaleString('fr-CA')} · {h.user_email || 'Système'} · {({ 'vault.reveal': 'affiché', 'vault.copy': 'copié', 'vault.created': 'créé', 'vault.updated': 'modifié' })[h.action] || h.action}</li>
+                  ))}
+                </ul>
+              )}
               {item.url && <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 dark:text-blue-400 hover:underline mt-1 block">{item.url}</a>}
             </div>
             <div className="flex gap-2">

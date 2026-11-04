@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- **Journal d'audit** : nouvel onglet **Journal d'audit** dans Administration (administrateurs seulement), avec filtres (utilisateur, action, dates, texte libre), pagination et export CSV (protégé contre l'injection de formules). Sont maintenant enregistrés : connexions réussies et échouées (mot de passe et SSO), création, changement de rôle, changement de mot de passe et suppression d'utilisateurs, liens de comptes SSO, connexion et déconnexion d'Acumatica, suppression de clients et de documents, téléchargement de documents, et les accès au coffre-fort de mots de passe (qui a **affiché** ou **copié** quelle entrée, et quand, jamais le mot de passe lui-même ; l'historique est visible par entrée pour les administrateurs). L'adresse IP suit le réglage de proxy de confiance existant. Une écriture au journal qui échoue ne fait jamais échouer la requête. Les entrées de plus de `AUDIT_RETENTION_DAYS` jours (365 par défaut, `0` = tout garder) sont supprimées par les tâches quotidiennes. Nouvelles colonnes `ip`, `user_agent`, `target_type`, `target_id` sur `audit_log` (ajoutées automatiquement).
+
 ## [0.0.14] - Mises à jour en un clic (publication corrigée)
 
 - **La version 0.0.13 n'a pas été publiée** : la construction de l'image de l'interface s'est bloquée sous émulation ; seules trois de ses images existent sur le registre, sans étiquette ni release GitHub. Cette version 0.0.14 contient tout ce que devait contenir la 0.0.13 (mises à jour en un clic, ci-dessous).

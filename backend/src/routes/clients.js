@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { serverError } = require('../lib/respond');
+const { audit } = require('../lib/audit');
 
 router.get('/clients', authenticate, async (req, res) => {
   const db = req.app.locals.db;
@@ -57,7 +58,8 @@ router.put('/clients/:id', authenticate, async (req, res) => {
 router.delete('/clients/:id', authenticate, requireAdmin, async (req, res) => {
   const db = req.app.locals.db;
   try {
-    await db.query('DELETE FROM clients WHERE id = $1', [req.params.id]);
+    const gone = await db.query('DELETE FROM clients WHERE id = $1 RETURNING name', [req.params.id]);
+    if (gone.rows[0]) await audit(req, 'client.deleted', { name: gone.rows[0].name }, { target: ['client', req.params.id] });
     res.json({ message: 'Client supprimé' });
   } catch (err) {
     serverError(res, err);

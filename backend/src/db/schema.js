@@ -222,4 +222,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC);
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS ip VARCHAR(64);
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS user_agent VARCHAR(255);
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS target_type VARCHAR(40);
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS target_id VARCHAR(64);
+CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_target ON audit_log(target_type, target_id, created_at DESC);
 `;
