@@ -10,7 +10,7 @@ const navItems = [
 ];
 
 const adminItems = [
-  { to: '/users', label: 'Utilisateurs', icon: '⚙️' },
+  { to: '/admin', label: 'Administration', icon: '⚙️' },
 ];
 
 export default function Sidebar({ onClose }) {
@@ -70,7 +70,7 @@ export default function Sidebar({ onClose }) {
         {user?.role === 'admin' && (
           <>
             <div className="pt-4 pb-2">
-              <p className="text-gray-500 text-xs uppercase tracking-wider px-4">Administration</p>
+              <p className="text-gray-500 text-xs uppercase tracking-wider px-4">Gestion</p>
             </div>
             {adminItems.map((item) => (
               <NavLink

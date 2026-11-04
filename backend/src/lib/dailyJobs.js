@@ -10,6 +10,12 @@ async function runDailyJobs(db) {
   console.log(`Daily jobs: ${created} preventive work order(s) created.`);
 
   await sendAdminDigest(db);
+  // Shown in the admin panel (Santé). Best effort: a status write must never fail the jobs.
+  await db.query(
+    `INSERT INTO app_status (key, value, updated_at) VALUES ('scheduler_last_run', $1::jsonb, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [JSON.stringify({ created })]
+  ).catch(err => console.error('Could not record the scheduler status:', err.message));
   return { created };
 }
 
