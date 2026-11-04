@@ -15,7 +15,9 @@ Le script :
 3. le déploie dans le dossier `./techibase` ;
 4. lance `install.sh`, qui crée le fichier `.env` avec un `JWT_SECRET` et un `DB_PASSWORD` **aléatoires**, télécharge les images et démarre les quatre conteneurs.
 
-Quand il affiche « TechIBase est prêt ! », ouvrez **http://localhost** (ou l'adresse de votre serveur) et suivez [Premiers pas](premiers-pas.md).
+Quand il affiche « TechIBase est prêt ! », ouvrez l'adresse qu'il affiche, par défaut **http://localhost:26591** (ou `http://<adresse-du-serveur>:26591` depuis un autre poste : ouvrez ce port dans le pare-feu du serveur), et suivez [Premiers pas](premiers-pas.md).
+
+> **Pourquoi le port 26591 ?** C'est un port volontairement peu courant : presque aucun autre logiciel ne l'utilise, donc pas de conflit avec le 80 ou le 8080. Il est fixe, le même pour toutes les installations. Pour en choisir un autre, mettez `HTTP_PORT` dans le `.env` (par exemple `80` pour une adresse sans port) puis `docker compose up -d`.
 
 Pour choisir la version ou le dossier :
 
@@ -55,7 +57,7 @@ Sans passer par `install.sh` : `cp .env.example .env`, modifier `JWT_SECRET` et 
 | `db` | PostgreSQL 15 (volume `db_data`) |
 | `backend` | L'API. Non exposée à l'hôte : on n'y accède que par l'application web |
 | `scheduler` | Les tâches quotidiennes : bons de service préventifs et résumé par courriel aux administrateurs |
-| `frontend` | L'application web (nginx), seul point d'entrée, publié sur le port `HTTP_PORT` (80 par défaut) |
+| `frontend` | L'application web (nginx), seul point d'entrée, publié sur le port `HTTP_PORT` (26591 par défaut) |
 
 Commandes utiles, depuis le dossier d'installation :
 
@@ -75,7 +77,7 @@ scripts/docker-smoke.sh       # test de bout en bout de l'installation
 |---|---|
 | `JWT_SECRET` | **Obligatoire.** Secret de signature des sessions. ⚠️ Ne la changez jamais sur une installation existante : elle sert aussi à chiffrer le coffre-fort de mots de passe |
 | `DB_PASSWORD`, `DB_NAME`, `DB_USER` | Accès à la base |
-| `HTTP_PORT` | Port publié par l'application (80) |
+| `HTTP_PORT` | Port publié par l'application (26591 par défaut ; `80` pour une adresse sans port) |
 | `TZ` | Fuseau horaire des conteneurs, par exemple `America/Toronto`. Il décide de l'heure du planificateur |
 | `SCHEDULER_TIME` | Heure du passage quotidien du planificateur, `HH:MM` (défaut `06:00`) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Courriels d'assignation et résumé quotidien (facultatif) |
