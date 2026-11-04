@@ -113,3 +113,35 @@ test('reminder notifications go to admins once, then are de-duplicated', skipWit
   assert.ok(rows.some(r => r.type === 'maintenance_overdue') && rows.some(r => r.type === 'epi_expired'));
   assert.equal(await sendReminderNotifications(db), 0);
 });
+
+test('re-opening and re-closing a work order does not roll the equipment twice', skipWithoutPg, async () => {
+  const eq = (await db.query(
+    "INSERT INTO equipment (client_id, name, next_maintenance, maintenance_interval_months) VALUES ($1,'Groupe', CURRENT_DATE, 6) RETURNING id", [clientId])).rows[0];
+  const wo = (await db.query(
+    "INSERT INTO work_orders (client_id, equipment_id, title, due_date, auto_generated) VALUES ($1,$2,'Maintenance', CURRENT_DATE, TRUE) RETURNING id", [clientId, eq.id])).rows[0];
+  const put = (status) => request(app).put(`/api/work-orders/${wo.id}`).set(auth)
+    .send({ title: 'Maintenance', status, equipment_id: eq.id, due_date: new Date().toISOString().slice(0, 10) });
+
+  await put('done');
+  const rolled = await getEquipment(eq.id);
+  assert.equal(rolled.n, await dateStr("CURRENT_DATE + INTERVAL '6 months'"));
+
+  // Later the equipment's date is moved (next cycle, manual edit): re-closing the old work order must not touch it.
+  await db.query('UPDATE equipment SET next_maintenance = CURRENT_DATE + 5 WHERE id=$1', [eq.id]);
+  await put('open');
+  await put('done');
+  assert.equal((await getEquipment(eq.id)).n, await dateStr('CURRENT_DATE + 5'));
+});
+
+test('month-end rollover clamps to the last day of the target month', skipWithoutPg, async () => {
+  assert.equal(await dateStr("DATE '2027-01-31' + make_interval(months => 1)"), '2027-02-28');
+  assert.equal(await dateStr("DATE '2028-01-31' + make_interval(months => 1)"), '2028-02-29');
+});
+
+test('updating an equipment without the cycle field keeps the cycle', skipWithoutPg, async () => {
+  const base = `/api/clients/${clientId}/equipment`;
+  const created = await request(app).post(base).set(auth).send({ name: 'Ventilo', maintenance_interval_months: 12 });
+  const updated = await request(app).put(`${base}/${created.body.id}`).set(auth).send({ name: 'Ventilo 2', status: 'active' });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.maintenance_interval_months, 12);
+});

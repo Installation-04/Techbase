@@ -51,6 +51,10 @@ function GenericModal({ title, fields, initialData, onClose, onSave }) {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   {f.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {/* A stored value outside the preset list (e.g. 4 months set via the API) stays selectable instead of silently resetting. */}
+                  {f.key === 'maintenance_interval_months' && form[f.key] && !f.options.some(o => String(o.value) === String(form[f.key])) && (
+                    <option value={form[f.key]}>{`Tous les ${form[f.key]} mois`}</option>
+                  )}
                 </select>
               ) : (
                 <input
