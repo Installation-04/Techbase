@@ -38,6 +38,118 @@ function Row({ label, children }) {
   );
 }
 
+const STATE_LABELS = { idle: 'Aucune mise à jour récente', running: 'Mise à jour en cours…', success: 'Mise à jour terminée', rolled_back: 'Retour à la version précédente', failed: 'Échec de la mise à jour' };
+
+// One-click update (only offered when the opt-in updater service is running).
+function UpdaterCard({ info, onFinished }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [polling, setPolling] = useState(false);
+
+  const poll = async () => {
+    try {
+      const res = await axios.get('/api/admin/update/status');
+      setStatus(res.data);
+      if (res.data.state !== 'running') { setPolling(false); if (res.data.state === 'success') onFinished?.(); }
+    } catch { /* the app restarts during an update: keep trying */ }
+  };
+
+  useEffect(() => { poll(); }, []);
+  useEffect(() => {
+    if (!polling) return undefined;
+    const id = setInterval(poll, 3000);
+    return () => clearInterval(id);
+  }, [polling]);
+  useEffect(() => { if (status?.state === 'running') setPolling(true); }, [status?.state]);
+
+  const start = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError('');
+    try {
+      await axios.post('/api/admin/update', { version: info.latest.version, password });
+      setOpen(false); setPassword('');
+      setStatus({ state: 'running', from: info.version, to: info.latest.version, log: [] });
+      setPolling(true);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erreur');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const running = status?.state === 'running';
+  const tone = { success: 'text-green-600 dark:text-green-400', rolled_back: 'text-amber-600 dark:text-amber-400', failed: 'text-red-600 dark:text-red-400' }[status?.state] || 'text-gray-700 dark:text-gray-200';
+
+  return (
+    <Card title="Mise à jour en un clic" className="lg:col-span-2">
+      {status && status.state !== 'idle' && (
+        <div className="mb-4">
+          <p className={`text-sm font-medium ${tone}`}>{STATE_LABELS[status.state]}{status.from && ` · v${status.from} → v${status.to}`}</p>
+          {status.error && <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">{status.error}</p>}
+          {status.backup && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sauvegarde : <code>backups/{status.backup}</code></p>}
+          {status.log?.length > 0 && (
+            <pre className="mt-2 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg p-3 max-h-48 overflow-auto whitespace-pre-wrap">{status.log.join('\n')}</pre>
+          )}
+          {running && <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">L'application redémarre : cette page peut se déconnecter quelques secondes. Elle se met à jour toute seule.</p>}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-3">
+        {info.updateAvailable && !running && (
+          <button onClick={() => setOpen(true)} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">Mettre à jour vers v{info.latest.version}</button>
+        )}
+        {status?.from && !running && status.state !== 'idle' && (
+          <RollbackButton version={status.from} />
+        )}
+        {!info.updateAvailable && !running && <p className="text-sm text-gray-500 dark:text-gray-400">Vous utilisez déjà la dernière version publiée.</p>}
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label="Confirmer la mise à jour">
+          <form onSubmit={start} className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Mettre à jour vers v{info.latest.version} ?</h3>
+            <ul className="text-sm text-gray-600 dark:text-gray-300 mt-3 space-y-1 list-disc list-inside">
+              <li>Une <strong>sauvegarde</strong> de la base et des documents est faite d'abord.</li>
+              <li>L'application sera <strong>indisponible environ une minute</strong>.</li>
+              <li>Si la nouvelle version ne démarre pas, <strong>l'ancienne est remise automatiquement</strong>.</li>
+            </ul>
+            <label className="block text-sm text-gray-700 dark:text-gray-200 mt-4">Votre mot de passe
+              <input type="password" autoFocus required value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password"
+                className="mt-1 w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm" />
+            </label>
+            {error && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{error}</p>}
+            <div className="flex justify-end gap-2 mt-5">
+              <button type="button" onClick={() => { setOpen(false); setError(''); setPassword(''); }} className="px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Annuler</button>
+              <button type="submit" disabled={busy || !password} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{busy ? 'Envoi…' : 'Mettre à jour'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function RollbackButton({ version }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    try { await axios.post('/api/admin/update/rollback', { password }); window.location.reload(); }
+    catch (err) { setError(err.response?.data?.error || 'Erreur'); }
+  };
+  if (!open) return <button onClick={() => setOpen(true)} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800">Revenir à v{version}</button>;
+  return (
+    <form onSubmit={submit} className="flex items-center gap-2">
+      <input type="password" required autoFocus placeholder="Votre mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm" />
+      <button type="submit" className="px-3 py-2 rounded-lg bg-gray-800 text-white text-sm dark:bg-gray-200 dark:text-gray-900">Confirmer le retour</button>
+      {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
+    </form>
+  );
+}
+
 function SystemTab() {
   const [info, setInfo] = useState(null);
   const [error, setError] = useState('');
@@ -71,7 +183,8 @@ function SystemTab() {
       </Card>
 
       <Card title={info.updateAvailable ? `Mettre à jour vers v${info.latest.version}` : 'Mettre à jour'}>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{instructions.title}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{info.updaterAvailable ? 'À la main (le bouton ci-dessus fait la même chose)' : instructions.title}</p>
+        {!info.updaterAvailable && info.fromRelease && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Pour mettre à jour en un clic depuis cette page, activez le service de mise à jour : voir « Mise à jour en un clic » dans la documentation.</p>}
         <ol className="space-y-2 list-decimal list-inside text-sm text-gray-700 dark:text-gray-200">
           {instructions.steps.map(step => (
             <li key={step} className="break-words">{step.startsWith('docker') || step.startsWith('git') ? <code className="text-xs bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5">{step}</code> : step}</li>
@@ -79,6 +192,8 @@ function SystemTab() {
         </ol>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">Sauvegardez d'abord : <a className="text-blue-600 dark:text-blue-400 underline" href="https://github.com/Installation-04/Techbase/wiki/Installation#sauvegarde-et-restauration" target="_blank" rel="noreferrer">Sauvegarde et restauration</a>.</p>
       </Card>
+
+      {info.updaterAvailable && <UpdaterCard info={info} onFinished={() => axios.get('/api/admin/system').then(r => setInfo(r.data)).catch(() => {})} />}
 
       {info.latest && (
         <Card title={`Notes de la version v${info.latest.version}`} className="lg:col-span-2">

@@ -12,6 +12,23 @@ Les administrateurs ont une entrée **Administration** dans le menu, avec trois 
 
 La vérification interroge l'API publique de GitHub depuis le serveur, au plus une fois par heure, et n'envoie aucune information sur votre installation. Pour la désactiver (serveur sans accès Internet), mettez `UPDATE_CHECK=false` dans `.env`.
 
+### Mise à jour en un clic (facultatif)
+
+Si le **service de mise à jour** est activé, l'onglet Système affiche un bouton **Mettre à jour vers vX.Y.Z**. Il faut une installation par les **images publiées** (commande rapide ou paquet de release, avec `TECHIBASE_VERSION` fixée à un numéro précis dans `.env`).
+
+**Ce qui se passe quand vous cliquez** (vous devez retaper **votre mot de passe**) :
+
+1. une **sauvegarde** de la base de données et des documents est écrite dans le dossier `backups/` de l'installation (les fichiers appartiennent à `root`, car le service tourne en root : utilisez `sudo` pour les copier ou les supprimer) ;
+2. `TECHIBASE_VERSION` est changée dans `.env` (l'ancien fichier est gardé en `.env.bak`), les nouvelles images sont téléchargées et l'application est recréée (environ une minute d'indisponibilité) ;
+3. le service vérifie que la nouvelle version répond ;
+4. **si elle ne démarre pas, l'ancienne version est remise automatiquement** et l'échec est expliqué. Le bouton **Revenir à vX.Y.Z** permet aussi un retour manuel (les données ne sont pas restaurées : voir [Sauvegarde et restauration](installation.md#sauvegarde-et-restauration) si une version a modifié la base).
+
+Chaque demande et son résultat sont inscrits dans un journal (`audit_log`) avec le nom de l'administrateur.
+
+**Activer le service** : `./install.sh --with-updater` dans le dossier d'installation (relançable, ne touche pas au reste du `.env`), puis `docker compose up -d`. À la main : ajoutez `docker-compose.updater.yml` à `COMPOSE_FILE`, puis définissez dans `.env` `INSTALL_DIR` (chemin absolu du dossier) et `UPDATER_TOKEN` (32 caractères aléatoires ou plus).
+
+> ⚠️ **À savoir avant de l'activer.** Ce service reçoit l'accès au **socket Docker**, ce qui équivaut à un accès administrateur (root) sur le serveur : celui qui pourrait lui parler pourrait lancer n'importe quel conteneur. Il est donc isolé : conteneur à part (l'application n'a jamais le socket), joignable seulement sur le réseau privé de Docker avec un secret, trois actions fixes seulement (état, mise à jour vers une version **publiée**, retour arrière), et l'application ne le sollicite que pour un administrateur qui vient de retaper son mot de passe. Si vous préférez garder la main, ne l'activez pas : la section « Mettre à jour » indique les deux commandes à lancer vous-même. Le service ne se met pas à jour lui-même ; après une mise à jour, `docker compose pull updater && docker compose up -d updater` applique sa nouvelle version.
+
 ## Santé : l'état du serveur
 
 ![Onglet Santé](images/25-admin-sante.png)

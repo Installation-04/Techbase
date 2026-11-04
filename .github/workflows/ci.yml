@@ -113,6 +113,25 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  # The opt-in one-click updater, against REAL Docker: update, rollback, refusal of an unknown
+  # release and automatic rollback of a release that does not start (scripts/updater-e2e.sh).
+  docker-updater:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: The updater override renders (and mounts the socket in no other file)
+        run: |
+          export JWT_SECRET=ci INSTALL_DIR="$PWD" UPDATER_TOKEN=$(openssl rand -hex 32) TECHIBASE_VERSION=0.0.0
+          docker compose -f docker-compose.single.yml -f docker-compose.single.release.yml -f docker-compose.updater.yml config -q
+          docker compose -f docker-compose.yml -f docker-compose.release.yml -f docker-compose.updater.yml config -q
+          ! grep -l docker.sock docker-compose.yml docker-compose.single.yml docker-compose.https.yml docker-compose.single.https.yml docker-compose.release.yml docker-compose.single.release.yml
+      - name: End-to-end test of the updater
+        run: scripts/updater-e2e.sh
+
   docker-stack:
     runs-on: ubuntu-latest
     timeout-minutes: 25

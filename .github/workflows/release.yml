@@ -111,7 +111,7 @@ jobs:
             if [ "$EVENT" != "push" ] && git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null 2>&1; then
               echo "::error::The tag v$version already exists; versions are never re-published"; exit 1
             fi
-            for image in techbase-backend techbase-frontend techbase; do
+            for image in techbase-backend techbase-frontend techbase techbase-updater; do
               if image_exists "ghcr.io/$owner/$image:$version"; then
                 echo "::error::ghcr.io/$owner/$image:$version already exists; versions are never overwritten"; exit 1
               fi
@@ -298,6 +298,7 @@ jobs:
           - { image: backend, context: ./backend, name: techbase-backend }
           - { image: frontend, context: ./frontend, name: techbase-frontend }
           - { image: single, context: ., name: techbase }
+          - { image: updater, context: ., name: techbase-updater, file: docker/updater/Dockerfile }
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       SHA: ${{ needs.prepare.outputs.sha }}
@@ -326,6 +327,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           build-args: TECHIBASE_VERSION=${{ needs.prepare.outputs.version }}
           platforms: linux/amd64,linux/arm64
           push: true
@@ -384,7 +386,7 @@ jobs:
           bundle="techibase-v$VERSION-docker"
           mkdir -p "$bundle/backend/db" "$bundle/scripts"
           cp docker-compose.yml docker-compose.release.yml docker-compose.https.yml \
-            docker-compose.single.yml docker-compose.single.release.yml docker-compose.single.https.yml \
+            docker-compose.single.yml docker-compose.single.release.yml docker-compose.single.https.yml docker-compose.updater.yml \
             Caddyfile Caddyfile.single install.sh "$bundle/"
           cp backend/db/init.sql "$bundle/backend/db/"
           cp scripts/docker-smoke.sh "$bundle/scripts/"
