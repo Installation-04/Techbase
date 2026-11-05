@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { serverError } = require('../lib/respond');
+const { getMaintenanceAlerts, getEpiAlerts } = require('../lib/reminders');
 
 // GET /api/dashboard/summary — aggregate KPIs for the Home dashboard
 router.get('/dashboard/summary', authenticate, async (req, res) => {
@@ -15,6 +16,8 @@ router.get('/dashboard/summary', authenticate, async (req, res) => {
       workOrdersByPriority,
       interventionsByMonth,
       lowStockEpi,
+      maintenanceAlerts,
+      epiAlerts,
     ] = await Promise.all([
       db.query('SELECT COUNT(*)::int AS count FROM clients'),
       db.query('SELECT COALESCE(status, \'inconnu\') AS status, COUNT(*)::int AS count FROM equipment GROUP BY status'),
@@ -28,6 +31,8 @@ router.get('/dashboard/summary', authenticate, async (req, res) => {
         GROUP BY 1 ORDER BY 1
       `),
       db.query('SELECT COUNT(*)::int AS count FROM epi WHERE quantity <= 2'),
+      getMaintenanceAlerts(db),
+      getEpiAlerts(db),
     ]);
 
     res.json({
@@ -38,6 +43,8 @@ router.get('/dashboard/summary', authenticate, async (req, res) => {
       workOrdersByPriority: Object.fromEntries(workOrdersByPriority.rows.map(r => [r.priority, r.count])),
       interventionsByMonth: interventionsByMonth.rows,
       lowStockEpiCount: lowStockEpi.rows[0].count,
+      maintenanceAlerts,
+      epiAlerts,
     });
   } catch (err) {
     serverError(res, err);
