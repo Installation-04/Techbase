@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -11,6 +12,20 @@ const ClientDetail = lazy(() => import('./pages/ClientDetail'));
 const WorkOrders = lazy(() => import('./pages/WorkOrders'));
 const Procedures = lazy(() => import('./pages/Procedures'));
 const Admin = lazy(() => import('./pages/Admin'));
+const Journee = lazy(() => import('./pages/Journee'));
+
+// On a phone, a technician lands on "Ma journée" once per browser session;
+// "Accueil" stays reachable from the menu afterwards (Journee sets the flag on mount).
+function HomeOrDay() {
+  const { user } = useAuth();
+  let go = false;
+  try {
+    go = user?.role !== 'admin'
+      && window.matchMedia('(max-width: 767px)').matches
+      && !sessionStorage.getItem('journee-landed');
+  } catch { /* storage or matchMedia unavailable: show the home page */ }
+  return go ? <Navigate to="/journee" replace /> : <Home />;
+}
 
 export default function App() {
   return (
@@ -23,7 +38,17 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Layout>
-              <Home />
+              <HomeOrDay />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/journee"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Journee />
             </Layout>
           </ProtectedRoute>
         }

@@ -56,6 +56,7 @@ const searchRouter = require('./routes/search');
 const workOrdersRouter = require('./routes/workorders');
 const notificationsRouter = require('./routes/notifications');
 const dashboardRouter = require('./routes/dashboard');
+const myDayRouter = require('./routes/myday');
 const adminRouter = require('./routes/admin');
 const integrationsRouter = require('./routes/integrations');
 
@@ -71,6 +72,7 @@ app.use('/api', logbookRouter);
 app.use('/api', documentsRouter);
 app.use('/api', searchRouter);
 app.use('/api', workOrdersRouter);
+app.use('/api', myDayRouter);
 app.use('/api', notificationsRouter);
 app.use('/api', dashboardRouter);
 app.use('/api', integrationsRouter);

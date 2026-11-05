@@ -907,7 +907,7 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [client, setClient] = useState(null);
-  const [activeTab, setActiveTab] = useState('equipment');
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'equipment');
   const [editModal, setEditModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const visibleTabs = TABS.filter(t => !t.adminOnly || user?.role === 'admin');
@@ -927,7 +927,10 @@ export default function ClientDetail() {
     );
   }
 
-  const ActiveComponent = visibleTabs.find(t => t.id === activeTab)?.component;
+  // An unknown or admin-only ?tab= (stale link, non-admin) falls back to the first tab
+  // instead of showing an empty panel with no tab selected.
+  const shownTab = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0];
+  const ActiveComponent = shownTab?.component;
 
   const clientFields = [
     { key: 'name', label: 'Nom *', required: true },
@@ -1005,7 +1008,7 @@ export default function ClientDetail() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab.id
+                shownTab?.id === tab.id
                   ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/10'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
