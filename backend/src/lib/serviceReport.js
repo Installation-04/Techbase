@@ -1,0 +1,218 @@
+// Service reports: signature validation and PDF generation.
+// pdfkit is pure JS (its Helvetica metrics ship in the package), so it runs in
+// the stock node:alpine image with no system libraries.
+
+const zlib = require('zlib');
+
+const SIGNATURE_MAX_BYTES = 64 * 1024; // decoded PNG; the JSON body limit (100 kB) is the outer bound
+const SIGNATURE_MAX_DIMENSION = 2000; // px, per side
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const DATA_URL_RE = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/;
+
+class SignatureError extends Error {}
+
+// Channels per colour type, and the bit depths the PNG spec allows for each.
+const PNG_COLOR_TYPES = { 0: [1, [1, 2, 4, 8, 16]], 2: [3, [8, 16]], 3: [1, [1, 2, 4, 8]], 4: [2, [8, 16]], 6: [4, [8, 16]] };
+const PNG_MAX_RAW_BYTES = 8 * 1024 * 1024; // decompressed pixel data
+
+// Walks the chunk list and inflates the pixel data with a hard output cap, so
+// that a tiny file declaring a huge image (decompression bomb), a truncated or
+// corrupt stream (which would make every PDF render fail later), or bytes
+// appended after IEND (polyglot) are all refused at save time.
+function validatePngStructure(buf, width, height) {
+  const bad = () => new SignatureError('La signature doit être une image PNG valide');
+  const ihdrLen = buf.readUInt32BE(8);
+  if (ihdrLen !== 13) throw bad();
+  const depth = buf[24];
+  const colorType = buf[25];
+  const spec = PNG_COLOR_TYPES[colorType];
+  if (!spec || !spec[1].includes(depth) || buf[26] !== 0 || buf[27] !== 0 || buf[28] !== 0) throw bad(); // no interlacing
+  const rowBytes = Math.ceil((width * spec[0] * depth) / 8) + 1;
+  const rawSize = rowBytes * height;
+  if (rawSize > PNG_MAX_RAW_BYTES) throw new SignatureError('Dimensions de signature invalides');
+
+  const idat = [];
+  let hasPlte = false;
+  let pos = 8;
+  let ended = false;
+  while (pos + 12 <= buf.length) {
+    const len = buf.readUInt32BE(pos);
+    const type = buf.toString('latin1', pos + 4, pos + 8);
+    const end = pos + 12 + len;
+    if (end > buf.length) throw bad();
+    if (type === 'IDAT') idat.push(buf.subarray(pos + 8, pos + 8 + len));
+    else if (type === 'PLTE') hasPlte = true;
+    pos = end;
+    if (type === 'IEND') { ended = true; break; }
+  }
+  if (!ended || pos !== buf.length || idat.length === 0 || (colorType === 3 && !hasPlte)) throw bad();
+
+  let raw;
+  try {
+    raw = zlib.inflateSync(Buffer.concat(idat), { maxOutputLength: rawSize });
+  } catch {
+    throw bad();
+  }
+  if (raw.length !== rawSize) throw bad();
+}
+
+// Accepts a "data:image/png;base64,..." string and returns the PNG bytes, or
+// throws SignatureError (message in French, safe to show to the user). The
+// bytes are checked, not just the declared type: PNG signature + a sane IHDR.
+function parseSignatureDataUrl(value) {
+  if (typeof value !== 'string') throw new SignatureError('Signature invalide');
+  // Bound the work before decoding anything.
+  if (value.length > Math.ceil((SIGNATURE_MAX_BYTES * 4) / 3) + 64) throw new SignatureError('Signature trop volumineuse');
+  const match = DATA_URL_RE.exec(value);
+  if (!match) throw new SignatureError('La signature doit être une image PNG');
+  const buf = Buffer.from(match[1], 'base64');
+  if (buf.length > SIGNATURE_MAX_BYTES) throw new SignatureError('Signature trop volumineuse');
+  if (buf.length < 33 || !buf.subarray(0, 8).equals(PNG_MAGIC) || buf.toString('latin1', 12, 16) !== 'IHDR') {
+    throw new SignatureError('La signature doit être une image PNG');
+  }
+  const width = buf.readUInt32BE(16);
+  const height = buf.readUInt32BE(20);
+  if (!width || !height || width > SIGNATURE_MAX_DIMENSION || height > SIGNATURE_MAX_DIMENSION) {
+    throw new SignatureError('Dimensions de signature invalides');
+  }
+  validatePngStructure(buf, width, height);
+  return buf;
+}
+
+// The built-in Helvetica only has the Windows-1252 repertoire (all French
+// accents, œ, €, « » are in it). Anything else (CJK, Cyrillic, emoji) would come
+// out as unrelated garbage glyphs, so it is replaced by "?" instead; control
+// characters other than newline and tab are dropped.
+// Spelled out instead of using TextDecoder('windows-1252'): depending on the
+// Node/ICU build that decoder maps 0x80-0x9F to control characters, which
+// would drop œ, € and Œ.
+const WIN_1252 = (() => {
+  const set = new Set();
+  for (let c = 0x20; c <= 0x7e; c++) set.add(String.fromCharCode(c));
+  for (let c = 0xa0; c <= 0xff; c++) set.add(String.fromCharCode(c));
+  for (const ch of '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ') set.add(ch);
+  return set;
+})();
+function pdfText(value) {
+  if (value === null || value === undefined) return '';
+  let out = '';
+  for (const ch of String(value).normalize('NFC')) {
+    if (ch === '\n' || ch === '\t') out += ch;
+    else if (ch === '\r') continue;
+    else if (WIN_1252.has(ch)) out += ch;
+    else if (/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028\u2029\ufeff]/.test(ch)) continue;
+    else out += '?';
+  }
+  return out;
+}
+
+function formatMinutes(min) {
+  if (min === null || min === undefined || min === '') return '';
+  const n = Number(min);
+  if (!Number.isFinite(n)) return '';
+  const h = Math.floor(n / 60);
+  const m = n % 60;
+  return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`;
+}
+
+function formatFrDate(value) {
+  if (!value) return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('fr-FR', { timeZone: 'UTC' });
+}
+
+// Builds the PDF and resolves with a Buffer.
+// data: { company, workOrder, client, report, signature (Buffer|null), generatedAt }
+function buildServiceReportPdf(data) {
+  const PDFDocument = require('pdfkit');
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 50, info: { Title: pdfText(`Rapport d'intervention - ${data.workOrder.title}`).replace(/\s+/g, ' ') } });
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    try {
+      const { workOrder, client, report } = data;
+      const company = pdfText(data.company).trim() || 'TechIBase';
+      const left = doc.page.margins.left;
+      const width = doc.page.width - left - doc.page.margins.right;
+
+      // Header band
+      doc.rect(0, 0, doc.page.width, 80).fill('#1d4ed8');
+      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(20).text(company, left, 28, { width, height: 24, lineBreak: false, ellipsis: true });
+      doc.font('Helvetica').fontSize(10).text("Rapport d'intervention", left, 54, { width });
+      doc.fillColor('#000000');
+      doc.y = 100;
+
+      const section = (title) => {
+        doc.moveDown(0.8);
+        doc.font('Helvetica-Bold').fontSize(12).fillColor('#1d4ed8').text(title, left, doc.y, { width });
+        doc.moveTo(left, doc.y + 1).lineTo(left + width, doc.y + 1).strokeColor('#cbd5e1').stroke();
+        doc.moveDown(0.4);
+        doc.fillColor('#000000').font('Helvetica').fontSize(10.5);
+      };
+      const field = (label, value) => {
+        if (!value) return;
+        doc.font('Helvetica-Bold').text(`${label} : `, left, doc.y, { continued: true, width });
+        doc.font('Helvetica').text(pdfText(value));
+      };
+      const block = (label, value) => {
+        if (!value) return;
+        doc.font('Helvetica-Bold').text(label, left, doc.y, { width });
+        doc.font('Helvetica').text(pdfText(value), left, doc.y, { width });
+        doc.moveDown(0.5);
+      };
+
+      section('Client');
+      field('Nom', client.name);
+      field('Adresse', client.address);
+      field('Téléphone', client.phone);
+      field('N° de contrat', client.contract_number);
+
+      section('Bon de service');
+      field('Numéro', `#${workOrder.id}`);
+      field('Titre', workOrder.title);
+      field('Équipement', workOrder.equipment_name);
+      field('Technicien', workOrder.assigned_to_name);
+      field('Échéance', formatFrDate(workOrder.due_date));
+      block('Description', workOrder.description);
+
+      section("Rapport d'intervention");
+      block('Travaux effectués', report.work_done);
+      block('Pièces utilisées', report.parts_used);
+      field('Temps passé', formatMinutes(report.time_spent_minutes));
+      if (report.time_spent_minutes) doc.moveDown(0.5);
+      block('Observations', report.observations);
+
+      // Signature block must not split across pages.
+      if (doc.y > doc.page.height - 230) doc.addPage();
+      section('Signature du client');
+      if (data.signature) {
+        doc.image(data.signature, left, doc.y, { fit: [260, 100] });
+        doc.y += 106;
+        doc.font('Helvetica').fontSize(10);
+        field('Signataire', report.signer_name);
+        field('Signé le', formatFrDate(report.signed_at));
+      } else {
+        doc.font('Helvetica-Oblique').text('Non signé', left, doc.y, { width });
+      }
+
+      doc.font('Helvetica').fontSize(8).fillColor('#6b7280')
+        .text(`Document généré le ${formatFrDate(data.generatedAt || new Date())}`, left, doc.page.height - 60, { width, align: 'right' });
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+module.exports = {
+  pdfText,
+  SIGNATURE_MAX_BYTES,
+  SignatureError,
+  parseSignatureDataUrl,
+  buildServiceReportPdf,
+  formatMinutes,
+};
