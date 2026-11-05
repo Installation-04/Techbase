@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
   { to: '/', label: 'Accueil', icon: '🏠' },
+  { to: '/journee', label: 'Ma journée', icon: '📅' },
   { to: '/clients', label: 'Clients', icon: '👥' },
   { to: '/work-orders', label: 'Bons de service', icon: '🛠️' },
   { to: '/procedures', label: 'Procédures', icon: '📋' },

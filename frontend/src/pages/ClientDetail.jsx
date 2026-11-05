@@ -51,6 +51,10 @@ function GenericModal({ title, fields, initialData, onClose, onSave }) {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   {f.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {/* A stored value outside the preset list (e.g. 4 months set via the API) stays selectable instead of silently resetting. */}
+                  {f.key === 'maintenance_interval_months' && form[f.key] && !f.options.some(o => String(o.value) === String(form[f.key])) && (
+                    <option value={form[f.key]}>{`Tous les ${form[f.key]} mois`}</option>
+                  )}
                 </select>
               ) : (
                 <input
@@ -76,6 +80,14 @@ function GenericModal({ title, fields, initialData, onClose, onSave }) {
 }
 
 // ---- Equipment Tab ----
+const MAINTENANCE_CYCLES = [
+  { value: '', label: 'Aucun (ponctuel)' },
+  { value: '1', label: 'Tous les mois' },
+  { value: '3', label: 'Tous les trimestres' },
+  { value: '6', label: 'Tous les semestres' },
+  { value: '12', label: 'Tous les ans' },
+  { value: '24', label: 'Tous les 2 ans' },
+];
 function EquipmentTab({ clientId }) {
   const [items, setItems] = useState([]);
   const [modal, setModal] = useState(null);
@@ -94,6 +106,7 @@ function EquipmentTab({ clientId }) {
     { key: 'installation_date', label: 'Date installation', type: 'date' },
     { key: 'last_maintenance', label: 'Dernière maintenance', type: 'date' },
     { key: 'next_maintenance', label: 'Prochaine maintenance', type: 'date' },
+    { key: 'maintenance_interval_months', label: 'Cycle de maintenance', type: 'select', options: MAINTENANCE_CYCLES },
     { key: 'status', label: 'Statut', type: 'select', options: [{ value: 'active', label: 'Actif' }, { value: 'inactive', label: 'Inactif' }, { value: 'maintenance', label: 'En maintenance' }] },
     { key: 'notes', label: 'Notes', type: 'textarea' },
   ];
@@ -109,7 +122,7 @@ function EquipmentTab({ clientId }) {
             <div>
               <p className="font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">{item.type} {item.serial_number && `· S/N: ${item.serial_number}`}</p>
-              {item.next_maintenance && <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Prochaine maintenance: {formatDate(item.next_maintenance)}</p>}
+              {item.next_maintenance && <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Prochaine maintenance: {formatDate(item.next_maintenance)}{item.maintenance_interval_months && ` · cycle : ${item.maintenance_interval_months} mois`}</p>}
             </div>
             <div className="flex gap-2">
               <button onClick={() => setModal(item)} className="px-3 py-1 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Modifier</button>
@@ -952,7 +965,7 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [client, setClient] = useState(null);
-  const [activeTab, setActiveTab] = useState('equipment');
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'equipment');
   const [editModal, setEditModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const visibleTabs = TABS.filter(t => !t.adminOnly || user?.role === 'admin');
@@ -972,7 +985,10 @@ export default function ClientDetail() {
     );
   }
 
-  const ActiveComponent = visibleTabs.find(t => t.id === activeTab)?.component;
+  // An unknown or admin-only ?tab= (stale link, non-admin) falls back to the first tab
+  // instead of showing an empty panel with no tab selected.
+  const shownTab = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0];
+  const ActiveComponent = shownTab?.component;
 
   const clientFields = [
     { key: 'name', label: 'Nom *', required: true },
@@ -1050,7 +1066,7 @@ export default function ClientDetail() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab.id
+                shownTab?.id === tab.id
                   ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/10'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}

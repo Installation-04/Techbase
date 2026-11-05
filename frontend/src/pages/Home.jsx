@@ -3,11 +3,41 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import GlobalSearch from '../components/GlobalSearch';
+import { formatDate } from '../lib/dates.mjs';
 
 const STATUS_LABELS = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', done: 'Terminé', cancelled: 'Annulé' };
 const STATUS_ORDER = ['open', 'assigned', 'in_progress', 'done', 'cancelled'];
 // Height of the tallest bar of the interventions chart (its container is h-32 = 128 px, minus the month label).
 const CHART_BAR_MAX_PX = 96;
+
+function AlertList({ title, tone, rows, dateKey, emptyText, onOpen }) {
+  const badge = tone === 'danger'
+    ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+    : 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+  const when = (n) => (n < 0 ? `En retard de ${-n} j` : n === 0 ? "Aujourd'hui" : `Dans ${n} j`);
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">{title} ({rows.length})</h2>
+      {rows.length === 0 ? (
+        <p className="text-center text-gray-400 dark:text-gray-400 text-sm py-4">{emptyText}</p>
+      ) : (
+        <ul className="divide-y divide-gray-50 dark:divide-gray-800 max-h-64 overflow-y-auto">
+          {rows.map(r => (
+            <li key={r.id}>
+              <button onClick={() => onOpen(r)} className="w-full text-left py-2 flex items-center justify-between gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{r.name}</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">{r.client_name} · {formatDate(r[dateKey])}</span>
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${badge}`}>{when(r.days_until)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function StatTile({ label, value, tone = 'default', onClick }) {
   const toneClasses = {
@@ -67,6 +97,15 @@ export default function Home() {
             <StatTile label="Maintenance en retard" value={summary.overdueMaintenanceCount} tone="danger" />
             <StatTile label="EPI en stock faible" value={summary.lowStockEpiCount} tone="warning" />
           </div>
+
+          {summary.maintenanceAlerts && summary.epiAlerts && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <AlertList title="Maintenances en retard" tone="danger" rows={summary.maintenanceAlerts.overdue} dateKey="next_maintenance" emptyText="Aucune maintenance en retard" onOpen={r => navigate(`/clients/${r.client_id}`)} />
+              <AlertList title="Maintenances à venir (30 j)" tone="warning" rows={summary.maintenanceAlerts.upcoming} dateKey="next_maintenance" emptyText="Aucune maintenance à venir" onOpen={r => navigate(`/clients/${r.client_id}`)} />
+              <AlertList title="EPI expirés" tone="danger" rows={summary.epiAlerts.expired} dateKey="expiry_date" emptyText="Aucun EPI expiré" onOpen={r => navigate(`/clients/${r.client_id}`)} />
+              <AlertList title="EPI bientôt expirés (30 j)" tone="warning" rows={summary.epiAlerts.expiring} dateKey="expiry_date" emptyText="Aucun EPI bientôt expiré" onOpen={r => navigate(`/clients/${r.client_id}`)} />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
