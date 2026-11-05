@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- **Cycle de maintenance et rappels** : un équipement peut avoir un cycle de maintenance (mensuel, trimestriel, semestriel, annuel, tous les 2 ans). Quand un bon de service de maintenance (généré automatiquement ou prévu à la date de prochaine maintenance) passe à « Terminé », la dernière maintenance est enregistrée et la prochaine est reportée d'autant. L'accueil affiche les listes « Maintenances en retard / à venir (30 j) » et « EPI expirés / bientôt expirés (30 j) ». La tâche quotidienne crée des notifications pour les administrateurs (sans doublon sur 7 jours) et le résumé par courriel (si configuré) inclut les maintenances à venir et les EPI expirés. Nouvelle colonne `equipment.maintenance_interval_months` (ajoutée automatiquement).
+
 ## [0.0.14] - Mises à jour en un clic (publication corrigée)
 
 - **La version 0.0.13 n'a pas été publiée** : la construction de l'image de l'interface s'est bloquée sous émulation ; seules trois de ses images existent sur le registre, sans étiquette ni release GitHub. Cette version 0.0.14 contient tout ce que devait contenir la 0.0.13 (mises à jour en un clic, ci-dessous).

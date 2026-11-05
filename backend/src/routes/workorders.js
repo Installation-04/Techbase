@@ -5,6 +5,7 @@ const { validate } = require('../middleware/validate');
 const { serverError } = require('../lib/respond');
 const { notifyUser } = require('../lib/notify');
 const { escapeHtml } = require('../lib/email');
+const { rollMaintenanceForward } = require('../lib/reminders');
 
 const STATUSES = ['open', 'assigned', 'in_progress', 'done', 'cancelled'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -114,7 +115,7 @@ router.put('/work-orders/:id', authenticate, validate({
   const { title, description, status, priority, equipment_id, assigned_to, due_date } = req.body;
   const completedAt = status === 'done' ? 'NOW()' : 'NULL';
   try {
-    const before = await db.query('SELECT assigned_to FROM work_orders WHERE id = $1', [req.params.id]);
+    const before = await db.query('SELECT assigned_to, status FROM work_orders WHERE id = $1', [req.params.id]);
     if (before.rows.length === 0) return res.status(404).json({ error: 'Bon de service non trouvé' });
     const previousAssignee = before.rows[0].assigned_to;
 
@@ -126,6 +127,10 @@ router.put('/work-orders/:id', authenticate, validate({
        WHERE id=$8 RETURNING id`,
       [title, description || null, status || 'open', priority || 'medium', equipment_id || null, assigned_to || null, due_date || null, req.params.id]
     );
+    // Completing a maintenance work order moves the equipment's next maintenance forward.
+    if (status === 'done' && before.rows[0].status !== 'done') {
+      await rollMaintenanceForward(db, result.rows[0].id).catch(err => console.error('Maintenance roll-forward failed:', err));
+    }
     const full = await db.query(`${SELECT_WORK_ORDER} WHERE wo.id = $1`, [result.rows[0].id]);
     const workOrder = full.rows[0];
     res.json(workOrder);
