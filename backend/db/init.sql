@@ -232,3 +232,14 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC);
+
+-- Maintenance cycle: recurrence (in months) of the preventive maintenance of an
+-- equipment. NULL = one-off. Completing a maintenance work order rolls
+-- next_maintenance forward by this interval.
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS maintenance_interval_months INTEGER;
+DO $$ BEGIN
+  ALTER TABLE equipment ADD CONSTRAINT equipment_maintenance_interval_check
+    CHECK (maintenance_interval_months IS NULL OR maintenance_interval_months BETWEEN 1 AND 120);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS idx_equipment_next_maintenance ON equipment(next_maintenance) WHERE next_maintenance IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_epi_expiry_date ON epi(expiry_date) WHERE expiry_date IS NOT NULL;
