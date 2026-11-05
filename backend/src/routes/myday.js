@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { serverError } = require('../lib/respond');
+const { rollMaintenanceForward } = require('../lib/reminders');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // "2026-02-31" matches the regexp and Date.parse accepts it (rolls over to March),
@@ -79,6 +80,11 @@ async function applyStatusChange(db, before, status) {
      WHERE id = $2 RETURNING id, status, completed_at`,
     [status, before.id]
   );
+  // Same side effect as PUT /work-orders/:id: completing a maintenance work order
+  // moves the equipment's next maintenance forward (only on a real transition).
+  if (status === 'done' && before.status !== 'done') {
+    await rollMaintenanceForward(db, before.id).catch(err => console.error('Maintenance roll-forward failed:', err));
+  }
   return result.rows[0];
 }
 

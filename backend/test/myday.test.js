@@ -121,3 +121,27 @@ test('finishing twice keeps the first completion time', skipWithoutPg, async () 
   const first = (await post()).body.completed_at;
   assert.equal((await post()).body.completed_at, first);
 });
+
+test('finishing a maintenance order from the day view rolls the equipment forward (once)', skipWithoutPg, async () => {
+  const q = (sql, p) => testDb.pool.query(sql, p);
+  const eq = (await q(
+    `INSERT INTO equipment (client_id, name, next_maintenance, maintenance_interval_months)
+     VALUES ($1,'Onduleur', CURRENT_DATE, 6) RETURNING id`, [clientId])).rows[0].id;
+  const wo = (await q(
+    `INSERT INTO work_orders (client_id, equipment_id, title, status, assigned_to, due_date, auto_generated)
+     VALUES ($1,$2,'Maintenance','assigned',$3,CURRENT_DATE,true) RETURNING id`, [clientId, eq, tech])).rows[0].id;
+  const state = async () => (await q(
+    `SELECT to_char(last_maintenance,'YYYY-MM-DD') AS last, to_char(next_maintenance,'YYYY-MM-DD') AS next,
+            to_char(CURRENT_DATE,'YYYY-MM-DD') AS today,
+            to_char(CURRENT_DATE + interval '6 months','YYYY-MM-DD') AS expected FROM equipment WHERE id = $1`, [eq])).rows[0];
+
+  const res = await request(app).post(`/api/work-orders/${wo}/status`).set(tokenFor({ id: tech })).send({ status: 'done' });
+  assert.equal(res.status, 200);
+  const first = await state();
+  assert.equal(first.last, first.today);
+  assert.equal(first.next, first.expected);
+
+  // Re-finishing the same order must not push the date forward again.
+  await request(app).post(`/api/work-orders/${wo}/status`).set(tokenFor({ id: tech })).send({ status: 'done' });
+  assert.equal((await state()).next, first.expected);
+});
