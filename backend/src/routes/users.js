@@ -6,6 +6,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 const { issueToken } = require('../lib/token');
 const { serverError } = require('../lib/respond');
 const { validate } = require('../middleware/validate');
+const { audit } = require('../lib/audit');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -42,6 +43,7 @@ router.post('/register', loginLimiter, validate({
       [email, hash, name, role]
     );
     const user = result.rows[0];
+    await audit(req, 'user.registered', { role: user.role, email: user.email }, { user, target: ['user', user.id] });
     res.status(201).json({ token: issueToken(user), user });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email déjà utilisé' });
@@ -63,8 +65,10 @@ router.post('/login', loginLimiter, validate({
     // SSO-only, or the password is wrong — nothing here confirms an account exists.
     const valid = await bcrypt.compare(password, user?.password_hash || DUMMY_HASH);
     if (!user || !user.password_hash || !valid) {
+      await audit(req, 'login.failure', { reason: !user ? 'unknown_account' : !user.password_hash ? 'no_local_password' : 'bad_password' }, { user: { id: user?.id ?? null, email: email.slice(0, 255) } });
       return res.status(401).json({ error: 'Identifiants invalides' });
     }
+    await audit(req, 'login.success', { method: 'password' }, { user });
     res.json({ token: issueToken(user), user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (err) {
     serverError(res, err);
@@ -121,6 +125,7 @@ router.post('/', authenticate, requireAdmin, validate({
       'INSERT INTO users (email, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role, created_at',
       [email, hash, name, role || 'user']
     );
+    await audit(req, 'user.created', { email, role: result.rows[0].role }, { target: ['user', result.rows[0].id] });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email déjà utilisé' });
@@ -138,6 +143,7 @@ router.put('/:id', authenticate, requireAdmin, validate({
   const db = req.app.locals.db;
   const { email, password, name, role } = req.body;
   try {
+    const before = (await db.query('SELECT email, role FROM users WHERE id = $1', [req.params.id])).rows[0];
     let query, params;
     if (password) {
       const hash = await bcrypt.hash(password, 10);
@@ -149,6 +155,10 @@ router.put('/:id', authenticate, requireAdmin, validate({
     }
     const result = await db.query(query, params);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    const target = ['user', req.params.id];
+    if (before && before.role !== role) await audit(req, 'user.role_changed', { email, from: before.role, to: role }, { target });
+    if (password) await audit(req, 'user.password_changed', { email }, { target });
+    if (before && before.email !== email) await audit(req, 'user.email_changed', { from: before.email, to: email }, { target });
     res.json(result.rows[0]);
   } catch (err) {
     serverError(res, err);
@@ -162,7 +172,8 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   }
   const db = req.app.locals.db;
   try {
-    await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    const gone = await db.query('DELETE FROM users WHERE id = $1 RETURNING email, role', [req.params.id]);
+    if (gone.rows[0]) await audit(req, 'user.deleted', { email: gone.rows[0].email, role: gone.rows[0].role }, { target: ['user', req.params.id] });
     res.json({ message: 'Utilisateur supprimé' });
   } catch (err) {
     serverError(res, err);

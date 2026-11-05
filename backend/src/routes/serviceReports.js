@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { serverError } = require('../lib/respond');
+const { audit } = require('../lib/audit');
 const { contentDisposition } = require('../lib/fileTypes');
 const { SignatureError, parseSignatureDataUrl, buildServiceReportPdf } = require('../lib/serviceReport');
 const documentsRouter = require('./documents');
@@ -158,6 +159,9 @@ router.put('/work-orders/:id/service-report', authenticate, validate({
         signatureBuf, signatureBuf ? new Date() : null, req.user.id,
       ]
     );
+    if (signatureBuf) {
+      await audit(req, 'service_report.signed', { client_id: workOrder.client_id, signer_name: String(signer_name).trim() }, { target: ['work_order', req.params.id] });
+    }
     res.json(result.rows[0]);
   } catch (err) {
     serverError(res, err);
@@ -235,6 +239,7 @@ router.post('/work-orders/:id/service-report/attach', authenticate, async (req, 
         await fs.promises.unlink(path.join(uploadsDir, old.rows[0].filename)).catch(() => {});
       }
     }
+    await audit(req, 'service_report.attached', { client_id: workOrder.client_id, document_id: doc.rows[0].id }, { target: ['work_order', req.params.id] });
     res.status(201).json(doc.rows[0]);
   } catch (err) {
     serverError(res, err);

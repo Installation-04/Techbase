@@ -1,6 +1,7 @@
 const { generatePreventiveWorkOrders } = require('./maintenance');
 const { sendAdminDigest } = require('./digest');
 const { sendReminderNotifications } = require('./reminders');
+const { purgeAudit } = require('./audit');
 
 // Everything the platform does once a day. One implementation, two runners:
 // the Netlify scheduled function (netlify/functions/maintenance-scheduler.js)
@@ -18,6 +19,14 @@ async function runDailyJobs(db) {
 
   // Email is best effort: a failing digest must not skip the status write below.
   await sendAdminDigest(db).catch(err => console.error('Admin digest failed:', err.message));
+  // Audit-log retention (AUDIT_RETENTION_DAYS, default 365, 0 = keep everything). Best effort.
+  try {
+    const purged = await purgeAudit(db);
+    if (purged) console.log(`Daily jobs: ${purged} audit log row(s) purged.`);
+  } catch (err) {
+    console.error('Could not purge the audit log:', err.message);
+  }
+
   // Shown in the admin panel (Santé). Best effort: a status write must never fail the jobs.
   await db.query(
     `INSERT INTO app_status (key, value, updated_at) VALUES ('scheduler_last_run', $1::jsonb, NOW())

@@ -7,6 +7,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 const { serverError } = require('../lib/respond');
 const { systemInfo } = require('../lib/systemInfo');
 const updater = require('../lib/updaterClient');
+const { audit, listAudit, exportAudit } = require('../lib/audit');
 
 const router = express.Router();
 router.use('/admin', authenticate, requireAdmin);
@@ -81,13 +82,6 @@ async function confirmPassword(req) {
   if (!ok) { const e = new Error('Mot de passe incorrect.'); e.status = 403; throw e; }
 }
 
-async function audit(req, action, detail) {
-  await req.app.locals.db.query(
-    'INSERT INTO audit_log (user_id, user_email, action, detail) VALUES ($1, $2, $3, $4::jsonb)',
-    [req.user.id, req.user.email, action, JSON.stringify(detail)]
-  ).catch(err => console.error('audit log:', err.message));
-}
-
 function sendError(res, err) {
   if (err.status) return res.status(err.status).json({ error: err.message });
   return serverError(res, err);
@@ -136,6 +130,40 @@ router.get('/admin/update/status', async (req, res) => {
     }
     res.json(state);
   } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// ---- audit log (admin only, like everything under /admin) ----
+
+router.get('/admin/audit', async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const pageSize = Math.min(200, Math.max(1, parseInt(req.query.pageSize, 10) || 50));
+  try {
+    res.json(await listAudit(req.app.locals.db, req.query, { page, pageSize }));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+router.get('/admin/audit/export', async (req, res) => {
+  let started = false;
+  try {
+    // Rows are streamed in chunks; headers go out with the first one, after the filters validated.
+    const write = chunk => new Promise(resolve => {
+      if (!started) {
+        started = true;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="journal-audit.csv"');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+      }
+      if (res.write(chunk)) resolve(); else { res.once('drain', resolve); res.once('close', resolve); }
+    });
+    const count = await exportAudit(req.app.locals.db, req.query, write);
+    await audit(req, 'audit.exported', { rows: count, filters: { ...req.query } });
+    res.end();
+  } catch (err) {
+    if (started) return res.destroy(err); // a truncated download must not look complete
     sendError(res, err);
   }
 });

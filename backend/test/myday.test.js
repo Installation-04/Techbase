@@ -145,3 +145,15 @@ test('finishing a maintenance order from the day view rolls the equipment forwar
   await request(app).post(`/api/work-orders/${wo}/status`).set(tokenFor({ id: tech })).send({ status: 'done' });
   assert.equal((await state()).next, first.expected);
 });
+
+test('a status change from the day view is written to the audit log', skipWithoutPg, async () => {
+  const wo = await insert('Audité', { status: 'assigned', due: DAY });
+  const res = await request(app).post(`/api/work-orders/${wo}/status`).set(tokenFor({ id: tech })).send({ status: 'in_progress' });
+  assert.equal(res.status, 200);
+  const rows = (await testDb.pool.query(
+    "SELECT detail, target_type, target_id, user_id FROM audit_log WHERE action = 'work_order.status' AND target_id = $1", [String(wo)])).rows;
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0].detail, { from: 'assigned', to: 'in_progress' });
+  assert.equal(rows[0].target_type, 'work_order');
+  assert.equal(rows[0].user_id, tech);
+});

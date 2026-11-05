@@ -199,6 +199,10 @@ test('create, sign, download and attach a report', skipWithoutPg, async () => {
   const docs = await testDb.pool.query('SELECT id FROM documents WHERE client_id = $1', [att.body.client_id]);
   assert.equal(docs.rows.length, 1);
 
+  const trail = await testDb.pool.query(
+    "SELECT action FROM audit_log WHERE action LIKE 'service_report.%' AND target_id = $1 ORDER BY id", [String(woId)]);
+  assert.deepEqual(trail.rows.map(r => r.action), ['service_report.signed', 'service_report.attached', 'service_report.attached']);
+
   const edited = await request(app).put(url(woId)).set(t).send({ work_done: 'Modifié' });
   assert.equal(edited.body.has_signature, false);
   assert.equal((await request(app).get(url(woId, '/signature')).set(t)).status, 404);

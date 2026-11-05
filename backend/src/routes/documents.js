@@ -6,6 +6,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const { serverError } = require('../lib/respond');
+const { audit } = require('../lib/audit');
 const {
   SNIFF_BYTES,
   FALLBACK_MIMETYPE,
@@ -87,6 +88,7 @@ router.post('/clients/:clientId/documents', authenticate, upload.single('file'),
       'INSERT INTO documents (client_id, filename, original_name, mimetype, size, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
       [req.params.clientId, filename, req.file.originalname, mimetype, req.file.size, req.user.id]
     );
+    await audit(req, 'document.uploaded', { client_id: result.rows[0].client_id, name: req.file.originalname, size: req.file.size }, { target: ['document', result.rows[0].id] });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     serverError(res, err);
@@ -124,6 +126,7 @@ router.get('/clients/:clientId/documents/:id/download', authenticate, async (req
     res.setHeader('Content-Type', inline ? mimetype : FALLBACK_MIMETYPE);
     res.setHeader('Content-Disposition', contentDisposition(inline ? 'inline' : 'attachment', doc.original_name));
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    await audit(req, 'document.downloaded', { client_id: doc.client_id, name: doc.original_name }, { target: ['document', doc.id] });
     if (isNetlify) res.send(body);
     else res.sendFile(filePath);
   } catch (err) {
@@ -147,6 +150,7 @@ router.delete('/clients/:clientId/documents/:id', authenticate, async (req, res)
       });
     }
     await db.query('DELETE FROM documents WHERE id=$1', [req.params.id]);
+    await audit(req, 'document.deleted', { client_id: doc.client_id, name: doc.original_name }, { target: ['document', doc.id] });
     res.json({ message: 'Document supprimé' });
   } catch (err) {
     serverError(res, err);

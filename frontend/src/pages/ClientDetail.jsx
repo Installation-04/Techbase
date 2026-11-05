@@ -215,7 +215,42 @@ function ProceduresTab({ clientId }) {
 function PasswordsTab({ clientId }) {
   const [items, setItems] = useState([]);
   const [modal, setModal] = useState(null);
-  const [visible, setVisible] = useState({});
+  const [secrets, setSecrets] = useState({}); // entry id -> secret, only while unmasked
+  const [accessError, setAccessError] = useState('');
+  const { user } = useAuth();
+  const [history, setHistory] = useState({}); // admins: entry id -> access log rows
+
+  // Secrets are not in the list: this audited call is the only way to read one.
+  const fetchSecret = async (id, action) => {
+    const res = await axios.post(`/api/clients/${clientId}/passwords/${id}/reveal`, { action });
+    return res.data.password;
+  };
+  const reveal = async id => {
+    if (secrets[id] !== undefined) return setSecrets(({ [id]: _gone, ...rest }) => rest);
+    setAccessError('');
+    try {
+      const secret = await fetchSecret(id, 'reveal');
+      setSecrets(s => ({ ...s, [id]: secret }));
+    } catch { setAccessError("Impossible d'afficher ce mot de passe."); }
+  };
+  const copy = async id => {
+    setAccessError('');
+    try {
+      // Hand the clipboard a promise so the copy stays tied to the click while the audited fetch runs.
+      if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': fetchSecret(id, 'copy').then(t => new Blob([t], { type: 'text/plain' })) })]);
+      } else {
+        await navigator.clipboard.writeText(await fetchSecret(id, 'copy'));
+      }
+    } catch { setAccessError('Impossible de copier ce mot de passe.'); }
+  };
+  const toggleHistory = async id => {
+    if (history[id]) return setHistory(h => ({ ...h, [id]: null }));
+    try {
+      const res = await axios.get(`/api/clients/${clientId}/passwords/${id}/audit`);
+      setHistory(h => ({ ...h, [id]: res.data }));
+    } catch { /* admin-only; ignore */ }
+  };
 
   const fetch = useCallback(async () => {
     const res = await axios.get(`/api/clients/${clientId}/passwords`);
@@ -224,10 +259,13 @@ function PasswordsTab({ clientId }) {
 
   useEffect(() => { fetch(); }, [fetch]);
 
+  const editing = !!modal?.id;
   const fields = [
     { key: 'label', label: 'Label *', required: true },
     { key: 'username', label: "Nom d'utilisateur" },
-    { key: 'password', label: 'Mot de passe *', type: 'password', required: true },
+    editing
+      ? { key: 'password', label: 'Nouveau mot de passe (laisser vide pour conserver)', type: 'password' }
+      : { key: 'password', label: 'Mot de passe *', type: 'password', required: true },
     { key: 'url', label: 'URL' },
     { key: 'notes', label: 'Notes', type: 'textarea' },
   ];
@@ -237,27 +275,47 @@ function PasswordsTab({ clientId }) {
       <div className="flex justify-end mb-4">
         <button onClick={() => setModal({})} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">+ Ajouter</button>
       </div>
+      {accessError && <p className="text-red-600 dark:text-red-400 text-sm mb-3">{accessError}</p>}
       <div className="space-y-3">
         {items.map(item => (
-          <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 flex items-start justify-between">
-            <div>
+          <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="min-w-0">
               <p className="font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
               {item.username && <p className="text-sm text-gray-500 dark:text-gray-400">Utilisateur: {item.username}</p>}
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm font-mono text-gray-700 dark:text-gray-200">
-                  {visible[item.id] ? item.password : '••••••••'}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                <p className="text-sm font-mono break-all text-gray-700 dark:text-gray-200">
+                  {secrets[item.id] !== undefined ? secrets[item.id] : '••••••••'}
                 </p>
                 <button
-                  onClick={() => setVisible(v => ({ ...v, [item.id]: !v[item.id] }))}
+                  onClick={() => reveal(item.id)}
                   className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                 >
-                  {visible[item.id] ? 'Masquer' : 'Afficher'}
+                  {secrets[item.id] !== undefined ? 'Masquer' : 'Afficher'}
                 </button>
+                <button
+                  onClick={() => copy(item.id)}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                >
+                  Copier
+                </button>
+                {user?.role === 'admin' && (
+                  <button onClick={() => toggleHistory(item.id)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    {history[item.id] ? "Masquer l'historique" : 'Historique'}
+                  </button>
+                )}
               </div>
+              {history[item.id] && (
+                <ul className="mt-2 text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
+                  {history[item.id].length === 0 && <li>Aucun accès enregistré.</li>}
+                  {history[item.id].map(h => (
+                    <li key={h.id}>{new Date(h.created_at).toLocaleString('fr-CA')} · {h.user_email || 'Système'} · {({ 'vault.reveal': 'affiché', 'vault.copy': 'copié', 'vault.created': 'créé', 'vault.updated': 'modifié' })[h.action] || h.action}</li>
+                  ))}
+                </ul>
+              )}
               {item.url && <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 dark:text-blue-400 hover:underline mt-1 block">{item.url}</a>}
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setModal({ ...item, password: item.password })} className="px-3 py-1 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800">Modifier</button>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => setModal({ ...item, password: '' })} className="px-3 py-1 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800">Modifier</button>
               <button onClick={async () => { if (confirm('Supprimer ?')) { await axios.delete(`/api/clients/${clientId}/passwords/${item.id}`); fetch(); } }} className="px-3 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded">Supprimer</button>
             </div>
           </div>
@@ -271,7 +329,7 @@ function PasswordsTab({ clientId }) {
           initialData={modal}
           onClose={() => setModal(null)}
           onSave={async (data) => {
-            if (modal.id) await axios.put(`/api/clients/${clientId}/passwords/${modal.id}`, data);
+            if (modal.id) { await axios.put(`/api/clients/${clientId}/passwords/${modal.id}`, data); setSecrets(({ [modal.id]: _old, ...rest }) => rest); }
             else await axios.post(`/api/clients/${clientId}/passwords`, data);
             fetch();
           }}

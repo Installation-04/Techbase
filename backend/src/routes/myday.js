@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { serverError } = require('../lib/respond');
 const { rollMaintenanceForward } = require('../lib/reminders');
+const { audit } = require('../lib/audit');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // "2026-02-31" matches the regexp and Date.parse accepts it (rolls over to March),
@@ -106,7 +107,11 @@ router.post('/work-orders/:id/status', authenticate, validate({
       return res.status(403).json({ error: 'Ce bon de service ne vous est pas assigné' });
     }
     if (wo.status === 'cancelled') return res.status(409).json({ error: 'Bon de service annulé' });
-    res.json(await applyStatusChange(db, wo, status));
+    const changed = await applyStatusChange(db, wo, status);
+    if (wo.status !== status) {
+      await audit(req, 'work_order.status', { from: wo.status, to: status }, { target: ['work_order', changed.id] });
+    }
+    res.json(changed);
   } catch (err) {
     serverError(res, err);
   }

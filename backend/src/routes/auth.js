@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { issueToken } = require('../lib/token');
+const { audit } = require('../lib/audit');
 
 const SECRET = process.env.JWT_SECRET || 'change_this_secret_in_production_dev_only';
 
@@ -30,7 +31,8 @@ function decodeIdToken(idToken) {
   return JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString('utf8'));
 }
 
-async function findOrCreateSsoUser(db, { provider, providerId, email, name }) {
+async function findOrCreateSsoUser(req, { provider, providerId, email, name }) {
+  const db = req.app.locals.db;
   let result = await db.query('SELECT * FROM users WHERE provider = $1 AND provider_id = $2', [provider, providerId]);
   if (result.rows.length > 0) return result.rows[0];
 
@@ -40,6 +42,7 @@ async function findOrCreateSsoUser(db, { provider, providerId, email, name }) {
   if (result.rows.length > 0) {
     const existing = result.rows[0];
     await db.query('UPDATE users SET provider = $1, provider_id = $2 WHERE id = $3', [provider, providerId, existing.id]);
+    await audit(req, 'sso.account_linked', { provider, email }, { user: existing, target: ['user', existing.id] });
     return { ...existing, provider, provider_id: providerId };
   }
 
@@ -49,7 +52,9 @@ async function findOrCreateSsoUser(db, { provider, providerId, email, name }) {
     'INSERT INTO users (email, name, role, provider, provider_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
     [email, name, role, provider, providerId]
   );
-  return insertResult.rows[0];
+  const created = insertResult.rows[0];
+  await audit(req, 'user.registered', { provider, role, email }, { user: created, target: ['user', created.id] });
+  return created;
 }
 
 router.get('/providers', (req, res) => {
@@ -94,14 +99,16 @@ router.get('/google/callback', async (req, res) => {
     if (!tokenData.id_token) throw new Error('no_id_token');
     const payload = decodeIdToken(tokenData.id_token);
     if (payload.email_verified === false) throw new Error('email_not_verified');
-    const user = await findOrCreateSsoUser(req.app.locals.db, {
+    const user = await findOrCreateSsoUser(req, {
       provider: 'google',
       providerId: payload.sub,
       email: payload.email,
       name: payload.name || payload.email,
     });
+    await audit(req, 'login.success', { method: 'sso', provider: 'google' }, { user });
     res.redirect(`${frontend}/auth/callback#token=${issueToken(user)}`);
   } catch (err) {
+    await audit(req, 'login.failure', { method: 'sso', provider: 'google', reason: String(err.message).slice(0, 80) });
     res.redirect(`${frontend}/login?error=sso`);
   }
 });
@@ -145,14 +152,16 @@ router.get('/microsoft/callback', async (req, res) => {
     const payload = decodeIdToken(tokenData.id_token);
     const email = payload.email || payload.preferred_username;
     if (!email) throw new Error('no_email');
-    const user = await findOrCreateSsoUser(req.app.locals.db, {
+    const user = await findOrCreateSsoUser(req, {
       provider: 'microsoft',
       providerId: payload.oid || payload.sub,
       email,
       name: payload.name || email,
     });
+    await audit(req, 'login.success', { method: 'sso', provider: 'microsoft' }, { user });
     res.redirect(`${frontend}/auth/callback#token=${issueToken(user)}`);
   } catch (err) {
+    await audit(req, 'login.failure', { method: 'sso', provider: 'microsoft', reason: String(err.message).slice(0, 80) });
     res.redirect(`${frontend}/login?error=sso`);
   }
 });
