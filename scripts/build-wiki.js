@@ -20,7 +20,7 @@ const path = require('path');
 const GROUPS = [
   {
     title: 'Exploiter',
-    pages: ['installation', 'administration', 'journal-d-audit', 'versions-et-mises-a-jour', 'depannage', 'FAQ'],
+    pages: ['installation', 'administration', 'journal-d-audit', 'versions-et-mises-a-jour', 'versions-et-releases', 'depannage', 'FAQ'],
   },
   {
     title: 'Utiliser',

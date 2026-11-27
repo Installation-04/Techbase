@@ -32,6 +32,7 @@
 - [Administration](administration.md) — version et mises à jour, santé du serveur, comptes, SSO, courriels, planificateur
 - [Journal d'audit](journal-d-audit.md) — connexions, actions sensibles, accès au coffre-fort, export CSV, conservation
 - [Versions et mises à jour](versions-et-mises-a-jour.md) — numéros de version, images Docker, mise à jour et retour arrière
+- [Versions et releases](versions-et-releases.md) — numéros de version, tags, publier une version (mainteneurs)
 - [Dépannage](depannage.md) — l'installation, l'application, la vérification de bout en bout
 - [FAQ](FAQ.md) — port, emplacement des données, sauvegarde, mise à jour, mot de passe administrateur oublié
 
