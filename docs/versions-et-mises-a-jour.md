@@ -53,14 +53,7 @@ Remettez l'ancienne valeur dans `TECHIBASE_VERSION`, puis `docker compose pull &
 
 ## Pour les mainteneurs : publier une version
 
-Le workflow **Release** (`.github/workflows/release.yml`) publie les images, crée le tag et la release GitHub.
-
-1. Préparer : `node scripts/bump-version.js 0.0.x` (met à jour les trois `package.json` **et** leurs fichiers de verrouillage), puis déplacer les entrées « Non publié » du [CHANGELOG](../CHANGELOG.md) sous `## [0.0.x] - résumé`. Faire fusionner par pull request. La CI échoue si les numéros divergent ou si la section du CHANGELOG manque.
-2. **Répétition** : GitHub → **Actions → Release → Run workflow** sur `main`, version `0.0.x`, **publish désactivé**. Le workflow construit les images, démarre la pile complète à partir d'elles et exécute le test de bout en bout, sans rien publier.
-3. **Publication** : relancer avec **publish activé**. Il pousse les images (amd64 et arm64), puis crée le tag `v0.0.x` et la release avec son paquet d'installation.
-4. **Première publication seulement** : GitHub crée les deux paquets en privé ; passez chacun en **Public** (Packages → le paquet → Package settings) pour que `docker pull` fonctionne sans connexion.
-
-Garde-fous : seuls les commits de `main` sont publiés ; une version déjà publiée (tag ou image) est refusée.
+Une version se prépare avec `./scripts/release.sh X.Y.Z`, puis `git push origin main && git push origin vX.Y.Z` lance le workflow **Release**. La procédure complète, les garde-fous et la répétition sans publication sont dans [Versions et releases](versions-et-releases.md).
 
 ## Pour les mainteneurs : publier la documentation dans l'onglet Wiki
 

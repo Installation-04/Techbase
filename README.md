@@ -197,20 +197,7 @@ git push origin main && git push origin vX.Y.Z
 
 Chaque version est publiée par le workflow **Release** (`.github/workflows/release.yml`) : il vérifie la version, exécute toute la CI sur le commit, construit les images, démarre la pile complète à partir d'elles et lance le test de bout en bout, puis publie les images et crée la release GitHub avec son paquet d'installation.
 
-<details>
-<summary>Détail du déroulement d'une release</summary>
-
-<br>
-
-1. Préparer la version : `node scripts/bump-version.js 0.0.x` (il met à jour les trois `package.json` **et** leurs fichiers de verrouillage), puis déplacer les entrées « Non publié » de [CHANGELOG.md](CHANGELOG.md) sous un titre `## [0.0.x] - résumé`. Faire fusionner dans `main` par une pull request. La CI échoue si les `package.json` ne sont pas identiques ou si le journal des versions n'a pas de section pour ce numéro.
-2. **Répétition** : sur GitHub, **Actions → Release → Run workflow** (branche `main`), version `0.0.x`, **publish désactivé**. Rien n'est publié ; le workflow construit et teste tout. À faire en premier, c'est gratuit.
-3. **Publication** : relancer avec **publish activé**. Le workflow publie les images, puis crée le tag `v0.0.x` et la release GitHub (cochée « pre-release » tant que la version est `0.x`). Pousser vous-même un tag `v0.0.x` sur un commit de `main` revient au même.
-
-Garde-fous : seuls les commits de `main` sont publiés ; une version déjà publiée (tag ou image) n'est jamais écrasée ; le tag doit correspondre au numéro de `package.json`.
-
-Première publication : GitHub crée les paquets d'images en privé. Dans **Packages → chaque paquet → Package settings**, passez la visibilité à **Public** pour que `docker pull` fonctionne sans connexion.
-
-</details>
+La procédure complète (répétition sans publier, garde-fous, premier passage des paquets en **Public**, numéro « brûlé » en cas d'échec) est dans [Versions et releases](docs/versions-et-releases.md).
 
 ## Docker (auto-hébergé)
 

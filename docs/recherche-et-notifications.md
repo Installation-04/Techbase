@@ -23,6 +23,7 @@ La cloche 🔔, en haut à droite, affiche le **nombre de notifications non lues
 ![Notifications](images/21-notifications.png)
 
 - Un technicien est notifié dès qu'un **bon de service lui est assigné** : « Vous avez été assigné au bon de service « … » (client) ».
+- Les **administrateurs** reçoivent aussi, chaque jour, un rappel par type d'alerte : « Maintenances en retard : N », « Maintenances à venir (30 j) : N », « EPI expirés : N », « EPI bientôt expirés (30 j) : N » (voir [Maintenance et rappels](maintenance-et-rappels.md#les-rappels)).
 - **Tout marquer comme lu** vide le compteur.
 - Le compteur se rafraîchit toutes les 60 secondes.
 
@@ -31,6 +32,6 @@ La cloche 🔔, en haut à droite, affiche le **nombre de notifications non lues
 Si la variable `RESEND_API_KEY` est définie dans le `.env` (voir [Administration](administration.md)), TechIBase envoie aussi :
 
 - un **courriel d'assignation** au technicien, en plus de la notification ;
-- un **résumé quotidien aux administrateurs** : équipements dont la maintenance est en retard et EPI en stock faible (2 ou moins).
+- un **résumé quotidien aux administrateurs** : maintenance en retard et à venir, EPI en stock faible (2 ou moins), EPI expirés et bientôt expirés (rien n'est envoyé s'il n'y a rien à signaler).
 
 Sans cette variable, tout fonctionne ; il n'y a simplement pas de courriel.

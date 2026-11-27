@@ -199,20 +199,7 @@ git push origin main && git push origin vX.Y.Z
 
 Each version is published by the **Release** workflow (`.github/workflows/release.yml`): it checks the version, runs the whole CI on the commit, builds the images, starts the full stack from them and runs the end-to-end test, then publishes the images and creates the GitHub release with its install package.
 
-<details>
-<summary>How a release proceeds, step by step</summary>
-
-<br>
-
-1. Prepare the version: `node scripts/bump-version.js 0.0.x` (it updates the three `package.json` files **and** their lock files), then move the "Non publié" entries of [CHANGELOG.md](CHANGELOG.md) under a `## [0.0.x] - summary` heading. Merge into `main` through a pull request. CI fails if the `package.json` files differ or if the changelog has no section for that number.
-2. **Dry run**: on GitHub, **Actions → Release → Run workflow** (branch `main`), version `0.0.x`, **publish off**. Nothing is published; the workflow builds and tests everything. Do this first, it is free.
-3. **Publication**: run it again with **publish on**. The workflow publishes the images, then creates the `v0.0.x` tag and the GitHub release (marked "pre-release" while the version is `0.x`). Pushing a `v0.0.x` tag yourself on a `main` commit comes to the same thing.
-
-Safeguards: only `main` commits are published; an already published version (tag or image) is never overwritten; the tag must match the number in `package.json`.
-
-First publication: GitHub creates the image packages as private. Under **Packages → each package → Package settings**, set the visibility to **Public** so that `docker pull` works without signing in.
-
-</details>
+The full procedure (rehearsal without publishing, safeguards, switching the packages to **Public** the first time, what to do after a failed publish) is in [Versions and releases](docs/versions-et-releases.md) (in French).
 
 ## Docker (self-hosted)
 

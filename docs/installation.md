@@ -73,7 +73,7 @@ scripts/docker-smoke.sh       # test de bout en bout de l'installation
 |---|---|
 | `db` | PostgreSQL 15 (volume `db_data`) |
 | `backend` | L'API. Non exposée à l'hôte : on n'y accède que par l'application web |
-| `scheduler` | Les tâches quotidiennes : bons de service préventifs et résumé par courriel aux administrateurs |
+| `scheduler` | Les tâches quotidiennes : bons de service préventifs, rappels et résumé par courriel aux administrateurs, purge du journal d'audit |
 | `frontend` | L'application web (nginx), seul point d'entrée, publié sur le port `HTTP_PORT` (26591 par défaut) |
 
 Les commandes sont les mêmes, avec ces services : `docker compose exec scheduler node src/scheduler.js --once`, etc.
@@ -90,6 +90,8 @@ Les commandes sont les mêmes, avec ces services : `docker compose exec schedule
 | `HTTP_PORT` | Port publié par l'application (26591 par défaut ; `80` pour une adresse sans port) |
 | `TZ` | Fuseau horaire des conteneurs, par exemple `America/Toronto`. Il décide de l'heure du planificateur |
 | `SCHEDULER_TIME` | Heure du passage quotidien du planificateur, `HH:MM` (défaut `06:00`) |
+| `AUDIT_RETENTION_DAYS` | Durée de conservation du [journal d'audit](journal-d-audit.md#conservation), en jours (365 par défaut, `0` = tout garder) |
+| `UPDATE_CHECK` | `false` pour désactiver la vérification de la dernière version publiée (serveur sans accès Internet) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Courriels d'assignation et résumé quotidien (facultatif) |
 | `GOOGLE_*`, `MICROSOFT_*`, `PUBLIC_URL` | Connexion SSO (facultatif), voir [Administration](administration.md) |
 
