@@ -514,4 +514,4 @@ The application can be deployed entirely on Netlify:
 
 ## License
 
-No license file is published in this repository yet: all rights are reserved until a license is added.
+No license file is published in this repository for now.

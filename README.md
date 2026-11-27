@@ -512,4 +512,4 @@ L'application peut être déployée entièrement sur Netlify :
 
 ## Licence
 
-Aucun fichier de licence n'est encore publié dans ce dépôt : tous les droits sont réservés tant qu'une licence n'a pas été ajoutée.
+Aucun fichier de licence n'est publié dans ce dépôt pour le moment.
