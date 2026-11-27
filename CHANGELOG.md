@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+## [0.0.17] - COMPANY_NAME sous Docker
+
 - Correctif : `COMPANY_NAME` (nom de la société dans l'en-tête des PDF des rapports d'intervention) est maintenant transmis par les fichiers Compose et documenté dans `.env.example`; il n'était lu que hors Docker.
 ## [0.0.16] - Nouveau README, wiki refait et procédure de release
 
