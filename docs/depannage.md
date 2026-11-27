@@ -28,12 +28,15 @@ docker compose logs backend          # un seul service
 |---|---|
 | Je suis ramené à l'écran de connexion | La session dure 8 heures. Reconnectez-vous |
 | « Identifiants invalides » | Courriel ou mot de passe incorrect, ou compte créé par SSO (utilisez le bouton SSO). Un administrateur peut réinitialiser votre mot de passe |
-| Je n'ai plus de compte administrateur | Un autre administrateur peut changer votre rôle ou votre mot de passe depuis **Utilisateurs**. D'où l'intérêt d'en avoir deux |
+| Je n'ai plus de compte administrateur | Un autre administrateur peut changer votre rôle ou votre mot de passe depuis **Administration → Utilisateurs**. D'où l'intérêt d'en avoir deux (voir la [FAQ](FAQ.md)) |
 | Les boutons Google ou Microsoft n'apparaissent pas | Les variables `GOOGLE_*` ou `MICROSOFT_*` ne sont pas définies, ou le conteneur n'a pas été recréé : `docker compose up -d` |
 | Le SSO échoue au retour | `PUBLIC_URL` ne correspond pas à l'adresse de l'application, ou l'URI de redirection déclarée chez Google/Microsoft diffère. Voir [Administration](administration.md) |
 | Un fichier téléversé ne s'ouvre pas dans le navigateur | Normal pour les types non sûrs (HTML, SVG, CSV…) : ils se téléchargent. Seuls PDF, images et texte brut s'affichent |
 | Impossible de téléverser un gros fichier | La limite est de 50 Mo |
 | Pas de courriels | `RESEND_API_KEY` n'est pas défini (ou invalide). Les notifications dans l'application fonctionnent sans |
+| Le PDF d'un rapport d'intervention ne se télécharge pas | Sur le déploiement Netlify, la génération du PDF n'est pas disponible (réponse 501). Sur Docker, regardez `docker compose logs` au moment du clic. Voir [Rapports d'intervention](rapports-d-intervention.md) |
+| « Ma journée » est vide | Seuls les bons **assignés à vous**, **en cours** ou **d'échéance aujourd'hui ou dépassée**, et les terminés du jour, y figurent : voir [Ma journée](ma-journee.md) |
+| Une maintenance n'est pas reportée à la fin du bon | Le bon doit être lié à l'équipement, d'échéance égale à sa prochaine maintenance, et l'équipement doit avoir un cycle : voir [Maintenance et rappels](maintenance-et-rappels.md) |
 | Aucun bon préventif n'est créé | `docker compose logs scheduler` : le service tourne-t-il, à quelle heure (`SCHEDULER_TIME`, `TZ`) ? Déclenchez-le : `docker compose exec scheduler node src/scheduler.js --once`. Un équipement n'est pris en compte que si sa **prochaine maintenance** est renseignée et dans les 7 jours |
 | Les dates des formulaires s'affichent mois/jour | Le sélecteur de date suit la langue du navigateur. Les dates affichées dans l'application sont toujours JJ/MM/AAAA |
 

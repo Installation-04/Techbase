@@ -28,11 +28,12 @@ La barre latérale donne accès à tout :
 |---|---|
 | 🏠 **Accueil** | Tableau de bord et recherche globale |
 | 👥 **Clients** | La liste des clients et leur fiche |
+| 📅 **Ma journée** | Vos interventions du jour, pensées pour le téléphone : voir [Ma journée](ma-journee.md) |
 | 🛠️ **Bons de service** | Le tableau de toutes les interventions |
 | 📋 **Procédures** | Toutes les procédures, tous clients confondus |
-| ⚙️ **Utilisateurs** | Gestion des comptes (administrateurs seulement) |
+| ⚙️ **Administration** | Version et mises à jour, comptes, santé du serveur et [journal d'audit](journal-d-audit.md) (administrateurs seulement, sous le titre « Gestion ») |
 
-En bas de la barre : votre courriel, votre rôle, **Déconnexion** et le numéro de version. La cloche 🔔 en haut à droite montre vos [notifications](recherche-et-notifications.md).
+En bas de la barre : votre courriel, votre rôle, **Déconnexion** et le numéro de version. En haut à droite, la cloche 🔔 montre vos [notifications](recherche-et-notifications.md) et le bouton 🖥️ / ☀️ / 🌙 change le [thème clair ou sombre](mode-sombre.md).
 
 ## Le tableau de bord
 
@@ -44,13 +45,14 @@ En bas de la barre : votre courriel, votre rôle, **Déconnexion** et le numéro
 | **Bons de service actifs** | Bons ni terminés ni annulés. Cliquez pour ouvrir le tableau |
 | **Maintenance en retard** (rouge) | Équipements dont la date de prochaine maintenance est aujourd'hui ou dépassée |
 | **EPI en stock faible** (orange) | Équipements de protection dont la quantité est de 2 ou moins |
+| **Maintenances en retard / à venir** et **EPI expirés / bientôt expirés** | Quatre listes sous les tuiles (30 jours d'avance), un clic ouvre la fiche du client : voir [Maintenance et rappels](maintenance-et-rappels.md) |
 | **Bons de service par statut** | Répartition Ouvert / Assigné / En cours / Terminé / Annulé |
 | **Interventions (6 derniers mois)** | Nombre d'entrées de type « Intervention » du journal, par mois |
 | **Clients récents** | Accès rapide aux clients |
 
 ## Sur téléphone
 
-L'application s'adapte aux petits écrans : la barre latérale se replie derrière le bouton ☰, et les cartes passent sur deux colonnes.
+L'application s'adapte aux petits écrans : la barre latérale se replie derrière le bouton ☰, et les cartes passent sur deux colonnes. Un utilisateur qui n'est pas administrateur arrive directement sur [Ma journée](ma-journee.md) à l'ouverture.
 
 <p>
 <img src="images/22-mobile-accueil.png" alt="Accueil sur téléphone" width="260">
