@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- **Wiki refait** : la page d'accueil reprend la présentation des autres projets du dépôt (bannière, état, listes groupées) et le menu latéral est groupé (Exploiter / Utiliser / Projet). Nouvelles pages dans docs/ : Maintenance et rappels, Ma journée, Rapports d'intervention, Journal d'audit, Mode sombre et FAQ, avec captures d'écran ; pages existantes mises à jour pour les versions 0.0.12 à 0.0.15.
+
 ## [0.0.15] - Cycle de maintenance, Ma journée, rapports signés et journal d'audit
 
 - **Cycle de maintenance et rappels** : un équipement peut avoir un cycle de maintenance (mensuel, trimestriel, semestriel, annuel, tous les 2 ans). Quand un bon de service de maintenance (généré automatiquement ou prévu à la date de prochaine maintenance) passe à « Terminé », la dernière maintenance est enregistrée et la prochaine est reportée d'autant. L'accueil affiche les listes « Maintenances en retard / à venir (30 j) » et « EPI expirés / bientôt expirés (30 j) ». La tâche quotidienne crée des notifications pour les administrateurs (sans doublon sur 7 jours) et le résumé par courriel (si configuré) inclut les maintenances à venir et les EPI expirés. Nouvelle colonne `equipment.maintenance_interval_months` (ajoutée automatiquement).

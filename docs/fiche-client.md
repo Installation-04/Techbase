@@ -20,15 +20,15 @@ L'inventaire du site : serveurs, automates, écrans, réseau, onduleurs…
 
 ![Onglet Équipements](images/07-fiche-equipements.png)
 
-Pour chaque équipement : nom, type, numéro de série, dates d'installation, de dernière et de prochaine maintenance, statut (**Actif**, **Inactif** ou **En maintenance**) et notes. La **prochaine maintenance** apparaît en orange sous le nom.
+Pour chaque équipement : nom, type, numéro de série, dates d'installation, de dernière et de prochaine maintenance, **cycle de maintenance** (mensuel, trimestriel, semestriel, annuel, tous les 2 ans), statut (**Actif**, **Inactif** ou **En maintenance**) et notes. La **prochaine maintenance** apparaît en orange sous le nom.
 
 ![Modifier un équipement](images/08-modifier-equipement.png)
 
-> La date de prochaine maintenance alimente le tableau de bord (maintenance en retard) et la **génération automatique de bons de service** : voir [Bons de service](bons-de-service.md).
+> La date de prochaine maintenance alimente les alertes du tableau de bord et la **génération automatique de bons de service** ; avec un cycle, elle est reportée toute seule quand le bon est terminé : voir [Maintenance et rappels](maintenance-et-rappels.md) et [Bons de service](bons-de-service.md).
 
 ### Bons de service
 
-Les interventions de ce client, avec leur statut, leur priorité, le technicien assigné et l'échéance. Même contenu que le tableau global, filtré sur le client.
+Les interventions de ce client, avec leur statut, leur priorité, le technicien assigné et l'échéance. Même contenu que le tableau global, filtré sur le client. Le **rapport d'intervention** se rédige depuis le tableau global : voir [Rapports d'intervention](rapports-d-intervention.md).
 
 ![Onglet Bons de service](images/09-fiche-bons-de-service.png)
 
@@ -44,11 +44,13 @@ La page **Procédures** de la barre latérale rassemble celles de tous les clien
 
 ### Mots de passe
 
-Le coffre-fort du client : un libellé, un nom d'utilisateur, un mot de passe, une adresse et des notes. Les mots de passe sont **chiffrés dans la base** et **masqués** à l'écran : cliquez sur **Afficher** pour en voir un.
+Le coffre-fort du client : un libellé, un nom d'utilisateur, un mot de passe, une adresse et des notes. Les mots de passe sont **chiffrés dans la base** et **masqués** à l'écran : cliquez sur **Afficher** pour en voir un, ou sur **Copier** pour le placer dans le presse-papiers.
 
 ![Onglet Mots de passe](images/11-fiche-mots-de-passe.png)
 
 > Tous les utilisateurs connectés voient le coffre-fort de tous les clients. Limitez donc les comptes, et gardez le `JWT_SECRET` : sans lui, les mots de passe chiffrés deviennent illisibles (voir [Administration](administration.md)).
+
+Chaque **Afficher** ou **Copier** est inscrit au [journal d'audit](journal-d-audit.md) (qui, quelle entrée, quand ; jamais le mot de passe), et les administrateurs ont un bouton **Historique** sous chaque entrée.
 
 ### Contacts
 
@@ -58,7 +60,7 @@ Les personnes à joindre chez le client : nom, fonction, téléphone, courriel, 
 
 ### EPI
 
-Les équipements de protection individuelle exigés sur le site, avec la quantité, l'emplacement et la **date d'expiration** (en orange). Une quantité de **2 ou moins** compte dans « EPI en stock faible » du tableau de bord.
+Les équipements de protection individuelle exigés sur le site, avec la quantité, l'emplacement et la **date d'expiration** (en orange). Une quantité de **2 ou moins** compte dans « EPI en stock faible » du tableau de bord, et les listes « EPI expirés » et « EPI bientôt expirés (30 j) » de l'accueil s'appuient sur la date d'expiration : voir [Maintenance et rappels](maintenance-et-rappels.md#les-alertes-de-laccueil).
 
 ![Onglet EPI](images/13-fiche-epi.png)
 
@@ -70,7 +72,7 @@ L'historique des interventions : chaque entrée a un titre, une date et heure, u
 
 ### Documents
 
-La bibliothèque de fichiers du client : schémas, manuels, photos, notes. **+ Téléverser** ajoute un fichier (jusqu'à 50 Mo).
+La bibliothèque de fichiers du client : schémas, manuels, photos, notes. **+ Téléverser** ajoute un fichier (jusqu'à 50 Mo). Un [rapport d'intervention](rapports-d-intervention.md) signé peut aussi y être joint en PDF.
 
 ![Onglet Documents](images/15-fiche-documents.png)
 

@@ -13,11 +13,26 @@
 const fs = require('fs');
 const path = require('path');
 
-// Order of the sidebar. Pages not listed here are appended alphabetically.
-const ORDER = [
-  'README', 'installation', 'premiers-pas', 'fiche-client', 'bons-de-service',
-  'recherche-et-notifications', 'administration', 'versions-et-mises-a-jour', 'depannage',
+// The sidebar is grouped under bold headings, like the other wikis of the owner's
+// projects. Each group lists its pages (file names without ".md") in display order.
+// A page missing from every group is not lost: it is appended alphabetically under an
+// "Autres pages" heading. A listed page that does not exist is simply skipped.
+const GROUPS = [
+  {
+    title: 'Exploiter',
+    pages: ['installation', 'administration', 'journal-d-audit', 'versions-et-mises-a-jour', 'depannage', 'FAQ'],
+  },
+  {
+    title: 'Utiliser',
+    pages: [
+      'premiers-pas', 'fiche-client', 'bons-de-service', 'ma-journee', 'rapports-d-intervention',
+      'maintenance-et-rappels', 'recherche-et-notifications', 'mode-sombre',
+    ],
+  },
 ];
+
+// Order of the pages (and of the files returned): the landing page, then each group in turn.
+const ORDER = ['README', ...GROUPS.flatMap(group => group.pages)];
 
 function pageName(file) {
   const stem = path.basename(file, '.md');
@@ -67,25 +82,50 @@ function titleOf(content, fallback) {
   return match ? match[1].trim() : fallback;
 }
 
+// The sidebar: bold group headings, one link per page. `titles` maps a file stem
+// (e.g. "premiers-pas") to the title of the page; README (the Home page) is not in it.
+function buildSidebar(titles, repo = 'Installation-04/Techbase') {
+  const lines = ['**TechIBase**', '- [Accueil](Home)'];
+  const placed = new Set();
+  const section = (title, stems) => {
+    lines.push('', `**${title}**`);
+    for (const stem of stems) lines.push(`- [${titles[stem]}](${pageName(stem)})`);
+  };
+  for (const group of GROUPS) {
+    const stems = group.pages.filter(stem => stem in titles);
+    stems.forEach(stem => placed.add(stem));
+    if (stems.length) section(group.title, stems);
+  }
+  const others = Object.keys(titles).filter(stem => !placed.has(stem)).sort();
+  if (others.length) section('Autres pages', others);
+  lines.push(
+    '', '**Projet**',
+    `- [README du dépôt](https://github.com/${repo}#readme)`,
+    `- [Journal des versions](https://github.com/${repo}/blob/main/CHANGELOG.md)`,
+    `- [Releases](https://github.com/${repo}/releases)`,
+  );
+  return lines.join('\n') + '\n';
+}
+
 function buildWiki(docsDir, outDir, repo = 'Installation-04/Techbase', ref = 'main') {
   const files = listPages(docsDir);
   if (!files.length) throw new Error(`no .md page in ${docsDir}`);
   const pages = files.map(pageName);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const sidebar = ['**[Wiki TechIBase](Home)**', ''];
+  const titles = {};
   files.forEach((file, i) => {
     const source = fs.readFileSync(path.join(docsDir, file), 'utf8');
     const out = rewrite(source, { repo, ref, pages, file });
     fs.writeFileSync(path.join(outDir, `${pages[i]}.md`), out);
-    if (pages[i] !== 'Home') sidebar.push(`- [${titleOf(source, pages[i])}](${pages[i]})`);
+    const stem = path.basename(file, '.md');
+    if (pages[i] !== 'Home') titles[stem] = titleOf(source, pages[i]);
   });
-  sidebar.push('', `[Code source et releases](https://github.com/${repo})`);
-  fs.writeFileSync(path.join(outDir, '_Sidebar.md'), sidebar.join('\n') + '\n');
+  fs.writeFileSync(path.join(outDir, '_Sidebar.md'), buildSidebar(titles, repo));
   return [...pages, '_Sidebar'];
 }
 
-module.exports = { buildWiki, rewrite, pageName, listPages };
+module.exports = { buildWiki, buildSidebar, rewrite, pageName, listPages, GROUPS, ORDER };
 
 if (require.main === module) {
   const [docsDir, outDir, repo, ref] = process.argv.slice(2);

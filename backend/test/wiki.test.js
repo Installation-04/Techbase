@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { buildWiki, rewrite, pageName, listPages } = require('../../scripts/build-wiki');
+const { buildWiki, buildSidebar, rewrite, pageName, listPages, GROUPS, ORDER } = require('../../scripts/build-wiki');
 
 const ROOT = path.join(__dirname, '../..');
 const DOCS = path.join(ROOT, 'docs');
@@ -55,7 +55,16 @@ test('the real docs/ build into a complete, self-consistent wiki', () => {
     assert.ok(fs.existsSync(path.join(out, 'Home.md')), 'a landing page');
 
     const sidebar = fs.readFileSync(path.join(out, '_Sidebar.md'), 'utf8');
-    for (const page of expectedPages.filter(p => p !== 'Home')) assert.ok(sidebar.includes(`](${page})`), `sidebar lists ${page}`);
+    for (const page of expectedPages.filter(p => p !== 'Home')) {
+      assert.equal(sidebar.split(`](${page})`).length - 1, 1, `sidebar lists ${page} exactly once`);
+    }
+    assert.ok(sidebar.includes('](Home)'), 'sidebar links Home');
+    assert.doesNotMatch(sidebar, /\*\*Autres pages\*\*/, 'every page of docs/ belongs to a sidebar group (add new pages to GROUPS in scripts/build-wiki.js)');
+
+    // The landing page leads to every other page, like the sidebar does.
+    const home = fs.readFileSync(path.join(out, 'Home.md'), 'utf8');
+    for (const page of expectedPages.filter(p => p !== 'Home')) assert.ok(home.includes(`](${page})`), `Home links ${page}`);
+    assert.match(home, /^!\[[^\]]*\]\(https:\/\/raw\.githubusercontent\.com\/[^)]*\/docs\/images\/techibase-banner\.png\)/, 'Home starts with the banner');
 
     for (const page of expectedPages) {
       const text = fs.readFileSync(path.join(out, `${page}.md`), 'utf8');
@@ -74,6 +83,40 @@ test('the real docs/ build into a complete, self-consistent wiki', () => {
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }
+});
+
+test('the sidebar has bold group headings, in order, with their pages under them', () => {
+  const titles = { installation: 'Installation', 'premiers-pas': 'Premiers pas', zebra: 'Zèbre', alpha: 'Alpha' };
+  const lines = buildSidebar(titles, REPO).split('\n');
+  const headings = lines.filter(line => /^\*\*[^*[\]]+\*\*$/.test(line));
+  assert.deepEqual(headings, ['**TechIBase**', '**Exploiter**', '**Utiliser**', '**Autres pages**', '**Projet**']);
+  const at = h => lines.indexOf(h);
+  const index = lines.indexOf('- [Installation](Installation)');
+  assert.ok(at('**Exploiter**') < index && index < at('**Utiliser**'), 'a page sits under its group');
+  assert.ok(lines.indexOf('- [Premiers pas](Premiers-pas)') > at('**Utiliser**'));
+  // pages that are in no group are kept, alphabetically, and never dropped
+  assert.ok(lines.indexOf('- [Alpha](Alpha)') > at('**Autres pages**') && lines.indexOf('- [Alpha](Alpha)') < lines.indexOf('- [Zèbre](Zebra)'));
+  assert.ok(lines.includes('- [Accueil](Home)'));
+  assert.ok(lines.some(line => line.includes(`https://github.com/${REPO}/releases`)));
+  // groups that have no page in docs/ are not printed
+  assert.doesNotMatch(buildSidebar({ installation: 'Installation' }, REPO), /Utiliser/);
+});
+
+test('ORDER follows the sidebar groups, and pages not listed come last, alphabetically', () => {
+  assert.deepEqual(ORDER, ['README', ...GROUPS.flatMap(group => group.pages)]);
+  assert.equal(new Set(ORDER).size, ORDER.length, 'a page is listed in one group only');
+  const docs = tmp('wiki-order-');
+  try {
+    for (const name of ['README', 'installation', 'zebra', 'alpha']) fs.writeFileSync(path.join(docs, `${name}.md`), `# ${name}\n`);
+    assert.deepEqual(listPages(docs), ['README.md', 'installation.md', 'alpha.md', 'zebra.md']);
+  } finally {
+    fs.rmSync(docs, { recursive: true, force: true });
+  }
+});
+
+test('every page named in the sidebar groups exists in docs/', () => {
+  const stems = fs.readdirSync(DOCS).filter(f => f.endsWith('.md')).map(f => path.basename(f, '.md'));
+  for (const stem of GROUPS.flatMap(group => group.pages)) assert.ok(stems.includes(stem), `GROUPS lists ${stem}, which has no docs/${stem}.md`);
 });
 
 const git = (cwd, ...args) => {
