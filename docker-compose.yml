@@ -18,6 +18,7 @@ x-common-env: &common-env
   TZ: ${TZ:-UTC}
   RESEND_API_KEY: ${RESEND_API_KEY:-}
   EMAIL_FROM: ${EMAIL_FROM:-TechIBase <onboarding@resend.dev>}
+  COMPANY_NAME: ${COMPANY_NAME:-}
 
 x-logging: &default-logging
   driver: json-file
