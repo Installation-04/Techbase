@@ -4,6 +4,8 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+## [0.0.16] - Nouveau README, wiki refait et procédure de release
+
 - **Procédure de release** : `./scripts/release.sh X.Y.Z` prépare une version (date la section du CHANGELOG, met la version dans les six fichiers, commit `chore(release): vX.Y.Z` et tag annoté) ; le push du tag lance le workflow **Release**. Le workflow vérifie maintenant que chaque image publiée contient bien `linux/amd64` et `linux/arm64`, et la release GitHub joint `SHA256SUMS.txt`. Nouvelle page [Versions et releases](docs/versions-et-releases.md).
 - **Wiki refait** : la page d'accueil reprend la présentation des autres projets du dépôt (bannière, état, listes groupées) et le menu latéral est groupé (Exploiter / Utiliser / Projet). Nouvelles pages dans docs/ : Maintenance et rappels, Ma journée, Rapports d'intervention, Journal d'audit, Mode sombre et FAQ, avec captures d'écran ; pages existantes mises à jour pour les versions 0.0.12 à 0.0.15.
 - **README refait** : nouvelle présentation (bannière, badges, installation en une commande, tableau des fonctions, captures d'écran) en français et en anglais (`README.en.md`), avec quatre nouvelles captures (rapport signé, journal d'audit, mode sombre, « Ma journée » sur téléphone).
