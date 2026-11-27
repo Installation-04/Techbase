@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/techibase-banner-en.png" alt="TechIBase — Everything you need to know before you reach the customer" width="1200">
+  <img src="docs/images/techibase-banner-en.png" alt="TechIBase — Everything a field technician needs before, during and after the job" width="1200">
 </p>
 
 <h1 align="center">TechIBase</h1>

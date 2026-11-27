@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/techibase-banner.png" alt="TechIBase — Tout ce qu'il faut savoir avant d'arriver chez le client" width="1200">
+  <img src="docs/images/techibase-banner.png" alt="TechIBase — Tout ce qu'il faut au technicien de terrain, avant, pendant et après l'intervention" width="1200">
 </p>
 
 <h1 align="center">TechIBase</h1>
