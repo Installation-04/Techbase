@@ -4,6 +4,7 @@ Toutes les versions notables de TechIBase sont documentées ici. Le projet est e
 
 ## [Non publié]
 
+- Correctif : `COMPANY_NAME` (nom de la société dans l'en-tête des PDF des rapports d'intervention) est maintenant transmis par les fichiers Compose et documenté dans `.env.example`; il n'était lu que hors Docker.
 ## [0.0.16] - Nouveau README, wiki refait et procédure de release
 
 - **Procédure de release** : `./scripts/release.sh X.Y.Z` prépare une version (date la section du CHANGELOG, met la version dans les six fichiers, commit `chore(release): vX.Y.Z` et tag annoté) ; le push du tag lance le workflow **Release**. Le workflow vérifie maintenant que chaque image publiée contient bien `linux/amd64` et `linux/arm64`, et la release GitHub joint `SHA256SUMS.txt`. Nouvelle page [Versions et releases](docs/versions-et-releases.md).

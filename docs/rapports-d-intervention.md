@@ -43,7 +43,7 @@ La signature est une image PNG limitée à **64 Ko** et vérifiée par le serveu
 
 Le PDF reprend : l'**en-tête** (le nom de l'entreprise), les informations du **client**, celles du **bon de service**, le **rapport** (travaux, pièces, temps passé, observations), la **signature** avec le nom du signataire, et la **date** de génération.
 
-Le nom de l'entreprise de l'en-tête vient de la variable `COMPANY_NAME` du serveur ; sans elle, l'en-tête est « TechIBase ». Les fichiers Compose fournis avec TechIBase ne transmettent pas cette variable au conteneur : en installation Docker, l'en-tête reste donc « TechIBase » tant que vous ne l'ajoutez pas vous-même à la section `environment` de votre fichier Compose.
+Le nom de l'entreprise de l'en-tête vient de la variable `COMPANY_NAME` de votre fichier `.env` ; sans elle, l'en-tête est « TechIBase ». Les fichiers Compose la transmettent au conteneur : après l'avoir ajoutée, redémarrez avec `docker compose up -d`.
 
 La signature du rapport et son ajout au dossier du client sont inscrits au [journal d'audit](journal-d-audit.md) (« Rapport d'intervention signé », « Rapport d'intervention joint au client »).
 

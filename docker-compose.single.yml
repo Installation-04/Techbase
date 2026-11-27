@@ -35,6 +35,7 @@ services:
       SCHEDULER_TIME: ${SCHEDULER_TIME:-06:00}
       RUN_ON_START: ${RUN_ON_START:-false}
       AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-365}
+      COMPANY_NAME: ${COMPANY_NAME:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-TechIBase <onboarding@resend.dev>}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
